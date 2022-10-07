@@ -12,6 +12,7 @@ easily, driven by yaml specs, using secureboot and a UEFI db
 configured by yourself.
 
 ### Example 1
+```
 cat > vm1.yaml << EOF
 name: vm1
 type: kvm
@@ -29,8 +30,10 @@ EOF
 machine init vm1 < vm1.yaml
 machine run vm1
 machine gui vm1
+```
 
 ### Example 2
+```
 cat > vm2.yaml << EOF
 name: vm2
 type: kvm
@@ -54,9 +57,11 @@ machine console vm2  # wait for results
 machine edit vm2 --boot=disk
 machine run vm2
 machine console vm2  # use the vm
+```
 
 ### Example 3
 
+```
 cat > machine.yaml << EOF
 type: kvm
 
@@ -98,6 +103,7 @@ machines:
       - id: nic1
 EOF
 machine init --env cluster1 --import machine.yaml
+```
 
 # Goal
 
@@ -107,5 +113,7 @@ builder which will provide secureboot-protected, remote-attestation
 capable running of your VM images.  Using an image from zothub.io,
 local oci, or elsewhere, simply
 
+```
 machine init --env cluster1 pxehost.yaml
 machine attest cluster1
+```
