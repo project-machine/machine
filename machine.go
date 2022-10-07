@@ -20,7 +20,9 @@ func main() {
 	app.Version = Version
 	app.Commands = []cli.Command{
 		consoleCmd,
+		editCmd,
 		guiCmd,
+		initCmd,
 		listCmd,
 		runCmd,
 	}
