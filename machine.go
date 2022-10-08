@@ -11,7 +11,6 @@ import (
 var Version = "0.0.1"
 var configDir = ""
 var dataDir = ""
-var envDir = "default"
 
 func main() {
 	app := cli.NewApp()
@@ -25,12 +24,6 @@ func main() {
 		initCmd,
 		listCmd,
 		runCmd,
-	}
-	app.Flags =  []cli.Flag{
-		cli.StringFlag{
-			Name: "env,environment",
-			Usage: "The environment to use, defaults to \"default\"",
-		},
 	}
 
 	var err error
@@ -51,9 +44,6 @@ func main() {
 		if c.Bool("debug") {
 			debug = true
 			log.SetLevel(log.DebugLevel)
-		}
-		if t := c.String("env"); t != "" {
-			envDir = t
 		}
 		return nil
 	}

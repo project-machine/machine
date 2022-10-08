@@ -851,3 +851,19 @@ func UserDataDir() (string, error) {
 	}
 	return filepath.Join(p, ".local", "share"), nil
 }
+
+func DataDir(cluster string) string {
+	return filepath.Join(dataDir, "machine", cluster)
+}
+
+func RunDir(cluster, vm string) string {
+	return filepath.Join(DataDir(cluster),  fmt.Sprintf("%s.rundir", vm))
+}
+
+func ConfPath(cluster string) string {
+	return filepath.Join(configDir, "machine", cluster, "machine.yaml")
+}
+
+func SockPath(cluster, vm, sock string) string {
+	return filepath.Join(RunDir(cluster, vm), "sockets", sock)
+}

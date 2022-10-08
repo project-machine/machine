@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/urfave/cli"
 )
@@ -17,17 +18,13 @@ var consoleCmd = cli.Command{
 }
 
 func doConsole(ctx *cli.Context) error {
-	// TODO - get this path from the daemon over REST api
 	if ctx.NArg() < 1 {
-		return fmt.Errorf("VM name is required argument")
+		return fmt.Errorf("cluster name is required argument")
 	}
-	vmName := ctx.Args()[0]
-	sockPath := filepath.Join(dataDir,
-		 "machine",
-		 envDir,
-		 fmt.Sprintf("%s.rundir", vmName),
-		 "sockets",
-		 "console.socket")
+	ret := strings.SplitN(ctx.Args()[0], ":", 2)
+	cluster := ret[0]
+	vmName := ret[1]
+	sockPath := SockPath(cluster, vmName, "console.socket")
 	cmd := exec.Command("nc", "-U", sockPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -42,16 +39,18 @@ var guiCmd = cli.Command{
 }
 
 func doGui(ctx *cli.Context) error {
-	// TODO - get this path from the daemon over REST api
 	if ctx.NArg() < 1 {
-		return fmt.Errorf("VM name is required argument")
+		return fmt.Errorf("vm name is required argument")
 	}
-	vmName := ctx.Args()[0]
-	portPath := filepath.Join(dataDir,
-		 "machine",
-		 envDir,
-		 fmt.Sprintf("%s.rundir", vmName),
-		 "gui.port")
+	arg0 := ctx.Args()[0]
+	ret := strings.SplitN(arg0, ":", 2)
+	cluster := "default"
+	vmName := arg0
+	if len(ret) == 2 {
+		cluster = ret[0]
+		vmName = ret[1]
+	}
+	portPath := filepath.Join(RunDir(cluster, vmName), "gui.port")
 	c, err := os.ReadFile(portPath)
 	if err != nil {
 		return err

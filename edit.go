@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
@@ -25,9 +24,8 @@ func doEdit(ctx *cli.Context) error {
 		return errors.Errorf("VM name must be provided")
 	}
 
-	vmName := ctx.Args()[0]
-	yamlName := fmt.Sprintf("%s.yaml", vmName)
-	vmPath := filepath.Join(configDir, "machine", envDir, yamlName)
+	cluster := ctx.Args()[0]
+	cPath := ConfPath(cluster)
 
 	var vmbytes []byte
 	var err error
@@ -35,9 +33,9 @@ func doEdit(ctx *cli.Context) error {
 		return errors.Errorf("Not on a terminal")
 	}
 
-	vmbytes, err = os.ReadFile(vmPath)
+	vmbytes, err = os.ReadFile(cPath)
 	if err != nil {
-		return errors.Wrapf(err, "Error reading definition from %s", vmPath)
+		return errors.Wrapf(err, "Error reading definition from %s", cPath)
 	}
 
 	changed := false
@@ -72,7 +70,7 @@ func doEdit(ctx *cli.Context) error {
 		return nil
 	}
 
-	if err = os.WriteFile(vmPath, vmbytes, 0600); err != nil {
+	if err = os.WriteFile(cPath, vmbytes, 0600); err != nil {
 		return errors.Wrapf(err, "Error saving configuration")
 	}
 

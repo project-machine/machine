@@ -32,6 +32,16 @@ var initCmd = cli.Command{
 }
 
 func doInit(ctx *cli.Context) error {
+	if ctx.NArg() == 0 {
+		return errors.Errorf("Cluster name must be provided")
+	}
+
+	cluster := ctx.Args()[0]
+	cPath := ConfPath(cluster)
+	if PathExists(cPath) {
+		return errors.Errorf("%s already defined", cluster)
+	}
+
 	var vmbytes []byte
 	var err error
 	onTerm := termios.IsTerminal(unix.Stdin)
@@ -62,17 +72,9 @@ func doInit(ctx *cli.Context) error {
 		}
 	}
 
-	var vmName string
-	var vmPath string
 	for {
 		var vm VMDef
 		if err = yaml.Unmarshal(vmbytes, &vm); err == nil {
-			vmName = vm.Name
-			yamlName := fmt.Sprintf("%s.yaml", vmName)
-			vmPath = filepath.Join(configDir, "machine", envDir, yamlName)
-			if PathExists(vmPath) {
-				return errors.Errorf("VM %s:%s already defined", envDir, vmName)
-			}
 			break
 		}
 		if !onTerm {
@@ -89,14 +91,14 @@ func doInit(ctx *cli.Context) error {
 			return errors.Wrapf(err, "Error calling editor")
 		}
 	}
-	if err = EnsureDir(filepath.Dir(vmPath)); err != nil {
+	if err = EnsureDir(filepath.Dir(cPath)); err != nil {
 		return errors.Wrapf(err, "Error creating VM directory")
 	}
 
-	if err = os.WriteFile(vmPath, vmbytes, 0600); err != nil {
+	if err = os.WriteFile(cPath, vmbytes, 0600); err != nil {
 		return errors.Wrapf(err, "Error saving configuration")
 	}
 
-	log.Infof("Created VM %s:%s (%s)", envDir, vmName, vmPath)
+	log.Infof("Created VM %s (%s)", cluster, cPath)
 	return nil
 }

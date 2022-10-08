@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -30,26 +29,17 @@ func GetVMInfo(vmPath string) (string, string, error) {
 }
 
 func doList(ctx *cli.Context) error {
-	lDir := filepath.Join(configDir, "machine", envDir)
+	lDir := filepath.Join(configDir, "machine")
 	ents, err := os.ReadDir(lDir)
 	if err != nil {
 		return err
 	}
-	errlist := []string{}
 	for _, e := range ents {
-		if strings.HasSuffix(e.Name(), ".yaml") {
-			vmPath := filepath.Join(lDir, e.Name())
-			name, status, err := GetVMInfo(vmPath)
-			if err != nil {
-				n := fmt.Sprintf("Error reading %s: %v", vmPath, err)
-				errlist = append(errlist, n)
-				continue
-			}
-			fmt.Printf("%s: %s\n", name, status)
+		yamlPath := filepath.Join(lDir, e.Name(), "machine.yaml")
+		if !PathExists(yamlPath) {
+			continue
 		}
-	}
-	if len(errlist) != 0 {
-		fmt.Printf("Errors encountered:\n%s\n", strings.Join(errlist, "\n"))
+		fmt.Printf("%s: (TBD)\n", e.Name())
 	}
 	return nil
 }
