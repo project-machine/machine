@@ -104,8 +104,6 @@ func doRun(ctx *cli.Context) error {
 		panic("User interrupted machine-run")
 	}()
 
-	os.RemoveAll(DataDir(cluster))
-
 	log.Infof("loading vms")
 	for _, vm := range suite.Machines {
 		// where should we put sockfiles and tpm-dir?
