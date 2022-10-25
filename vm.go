@@ -912,7 +912,7 @@ func getKvmCommand(opts KVMRunOpts) ([]string, error) {
 		args = append(args, strings.Split(o, " ")...)
 	}
 
-	args = append(args, "-net", "none")
+	//args = append(args, "-net", "none")
 
 	switch opts.Boot {
 	case BootNet:
