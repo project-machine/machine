@@ -109,29 +109,29 @@ func doRun(ctx *cli.Context) error {
 
 		if vmConns, ok := suite.Connections[vm.Name]; ok {
 			for nicID, networkName := range vmConns {
-				found := false
+				foundNetwork := false
 				for netidx := range suite.Networks {
 					network := suite.Networks[netidx]
 					if network.Name == networkName {
-						found = true
+						foundNetwork = true
 						break
 					}
 				}
-				if !found {
-					return fmt.Errorf("Connection specified unknown network: %s", networkName)
+				if !foundNetwork {
+					return fmt.Errorf("Connection nicID:%s specified unknown network: %s", nicID, networkName)
 				}
+				foundNic := false
 				for nidx := range vm.Nics {
-					found = false
 					vmNic := vm.Nics[nidx]
 					if nicID == vmNic.ID {
-						found = true
+						foundNic = true
 						vmNic.Network = networkName
 						log.Debugf("Connecting %s.%s -> Network=%s", vm.Name, nicID, networkName)
 						vm.Nics[nidx] = vmNic
 						break
 					}
 				}
-				if !found {
+				if !foundNic {
 					return fmt.Errorf("A connection for VM %s references undefined NIC %s", vm.Name, nicID)
 				}
 			}
