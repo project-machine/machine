@@ -29,17 +29,16 @@ const LinuxIfnameLength int = 15
 // Allow specifying a prefix
 func randomNicIFName(prefix string) string {
 	prefixLength := len(prefix)
-	if prefixLength >= LinuxIfnameLength {
+	if prefixLength >= LinuxIfnameLength+1 {
 		return randomString(LinuxIfnameLength)
 	}
 	randLength := LinuxIfnameLength - prefixLength
 	return prefix + randomString(randLength)
 }
 
-// The VMNic lifecycle: first you create one with vm.AddNic().
-// The you call Setup on it to create the tap.  Then you call
-// Args to get the qemu commandline to use it.  Finally you
-// call Cleanup to tear down the nic.
+// The VMNic lifecycle: first you create one with vm.AddNic().  Then you call
+// .Setup() on it to create the device.  Then you call .Args() to get the qemu
+// commandline to use it.  Finally you call .Cleanup() to tear down the nic.
 type VMNic struct {
 	BusAddr    string
 	DeviceType string

@@ -157,6 +157,9 @@ func doRun(ctx *cli.Context) error {
 					break
 				}
 			}
+			if len(nicNetwork.Name) == 0 {
+				return fmt.Errorf("Unable to find the requested network %s for nic %s", vmNic.Network, vmNic.ID)
+			}
 			if err := VM.AddNic(&vmNic, &nicNetwork); err != nil {
 				return errors.Wrapf(err, "Failed to add nic %s to network %s for vm %s", vmNic.ID, vmNic.Network, vm.Name)
 			}
