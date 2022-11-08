@@ -27,7 +27,7 @@ var runCmd = cli.Command{
 }
 
 var VMs = []*VM{}
-var exitRequestCh chan(struct{})
+var exitRequestCh chan (struct{})
 
 func apiHandler(w http.ResponseWriter, req *http.Request) {
 	fields := strings.Split(req.URL.Path[1:], "/")
@@ -44,7 +44,7 @@ func apiHandler(w http.ResponseWriter, req *http.Request) {
 	case "exit":
 		io.WriteString(w, "{status:\"Exiting\"}\n")
 		os.Exit(1)
-		exitRequestCh<-struct{}{}
+		exitRequestCh <- struct{}{}
 		return
 	case "status":
 		io.WriteString(w, "{status:\"Running\"}\n")
@@ -106,6 +106,37 @@ func doRun(ctx *cli.Context) error {
 
 	log.Infof("loading vms")
 	for _, vm := range suite.Machines {
+
+		if vmConns, ok := suite.Connections[vm.Name]; ok {
+			for nicID, networkName := range vmConns {
+				foundNetwork := false
+				for netidx := range suite.Networks {
+					network := suite.Networks[netidx]
+					if network.Name == networkName {
+						foundNetwork = true
+						break
+					}
+				}
+				if !foundNetwork {
+					return fmt.Errorf("Connection nicID:%s specified unknown network: %s", nicID, networkName)
+				}
+				foundNic := false
+				for nidx := range vm.Nics {
+					vmNic := vm.Nics[nidx]
+					if nicID == vmNic.ID {
+						foundNic = true
+						vmNic.Network = networkName
+						log.Debugf("Connecting %s.%s -> Network=%s", vm.Name, nicID, networkName)
+						vm.Nics[nidx] = vmNic
+						break
+					}
+				}
+				if !foundNic {
+					return fmt.Errorf("A connection for VM %s references undefined NIC %s", vm.Name, nicID)
+				}
+			}
+		}
+
 		// where should we put sockfiles and tpm-dir?
 		vmName := vm.Name
 		doneCh := make(chan struct{}, 1)
@@ -114,11 +145,31 @@ func doRun(ctx *cli.Context) error {
 			return errors.Wrapf(err, "Failed creating VM instance")
 		}
 
+		log.Debugf("Adding nics...")
+		for nidx := range vm.Nics {
+			vmNic := vm.Nics[nidx]
+			log.Debugf("Adding nic %s network %s", vmNic.ID, vmNic.Network)
+			var nicNetwork NetworkDef
+			for netidx := range suite.Networks {
+				network := suite.Networks[netidx]
+				if network.Name == vmNic.Network {
+					nicNetwork = network
+					break
+				}
+			}
+			if len(nicNetwork.Name) == 0 {
+				return fmt.Errorf("Unable to find the requested network %s for nic %s", vmNic.Network, vmNic.ID)
+			}
+			if err := VM.AddNic(&vmNic, &nicNetwork); err != nil {
+				return errors.Wrapf(err, "Failed to add nic %s to network %s for vm %s", vmNic.ID, vmNic.Network, vm.Name)
+			}
+		}
+
 		VMs = append(VMs, &VM)
 	}
 
 	// Start a rest server
-	listener, err := net.Listen("unix", DataDir(cluster) + "/api.sock")
+	listener, err := net.Listen("unix", DataDir(cluster)+"/api.sock")
 	if err != nil {
 		return err
 	}

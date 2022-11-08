@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-
 type VMState int
 
 const (
@@ -130,17 +129,18 @@ func (p *PortRule) String() string {
 }
 
 type VMDef struct {
-	Name               string     `yaml:"name"`
-	Serial             string     `yaml:"serial"`
-	Disks              []QemuDisk `yaml:"disks"`
-	Boot               string     `yaml:"boot"`
-	Cdrom              string     `yaml:"cdrom"`
-	UefiVars           string     `yaml:"uefi-vars"`
-	TPM                bool       `yaml:"tpm"`
-	TPMVersion         string     `yaml:"tpm-version"`
-	KVMExtraOpts       []string   `yaml:"extra-opts"`
-	SecureBoot         bool       `yaml:"secure-boot"`
-	Gui                bool       `yaml:"gui"`
+	Name         string     `yaml:"name"`
+	Serial       string     `yaml:"serial"`
+	Nics         []NicDef   `yaml:"nics"`
+	Disks        []QemuDisk `yaml:"disks"`
+	Boot         string     `yaml:"boot"`
+	Cdrom        string     `yaml:"cdrom"`
+	UefiVars     string     `yaml:"uefi-vars"`
+	TPM          bool       `yaml:"tpm"`
+	TPMVersion   string     `yaml:"tpm-version"`
+	KVMExtraOpts []string   `yaml:"extra-opts"`
+	SecureBoot   bool       `yaml:"secure-boot"`
+	Gui          bool       `yaml:"gui"`
 }
 
 type VMNicNetLinks map[string]string
@@ -178,24 +178,24 @@ func ParseKVMBootSource(s string) KVMBootSource {
 	}
 }
 
-
 type KVMRunOpts struct {
-	Name           string
-	Cpus           int
-	Memory         int
-	SecureBoot     bool
-	ISO            string
-	Boot           KVMBootSource
-	Dir            string
-	KVMExtraOpts   []string
-	UefiVars       string
-	UseTPM         bool
-	TPMVersion     string
-	Disks          []QemuDisk
-	sockDir        string
-	SwTPM          *SwTPM
-	PciBusSlots    PciBus
-	Gui            bool
+	Name         string
+	Cpus         int
+	Memory       int
+	SecureBoot   bool
+	ISO          string
+	Boot         KVMBootSource
+	Dir          string
+	KVMExtraOpts []string
+	UefiVars     string
+	UseTPM       bool
+	TPMVersion   string
+	Disks        []QemuDisk
+	NICs         []*VMNic
+	sockDir      string
+	SwTPM        *SwTPM
+	PciBusSlots  PciBus
+	Gui          bool
 }
 
 // LinuxUnixSocketMaxLen - 108 chars max for a unix socket path (including null byte).
@@ -251,21 +251,20 @@ func (opts KVMRunOpts) TPMSocket() (string, error) {
 	return path.Join(sockDir, "tpm.socket"), nil
 }
 
-
 type VM struct {
-	Name               string
-	Boot               string
-	endCh              chan struct{}
-	doneCh             chan struct{}
-	swtpmDiedCh        chan struct{}
-	opts               KVMRunOpts
-	cmd                *exec.Cmd
-	KVMExtraOpts       []string
-	State              VMState
-	Cdrom              string
-	Cpus               int
-	Memory             int
-	SecureBoot         bool
+	Name         string
+	Boot         string
+	endCh        chan struct{}
+	doneCh       chan struct{}
+	swtpmDiedCh  chan struct{}
+	opts         KVMRunOpts
+	cmd          *exec.Cmd
+	KVMExtraOpts []string
+	State        VMState
+	Cdrom        string
+	Cpus         int
+	Memory       int
+	SecureBoot   bool
 }
 
 // 32 slots available, place auto-created devices
@@ -323,19 +322,19 @@ func newVM(endCh chan struct{}, doneCh chan struct{}, vm VMDef, runDir string) (
 
 	disks := []QemuDisk{}
 	opts := KVMRunOpts{
-		Name:           vm.Name,
-		Cpus:           2,
-		Memory:         4096,
-		Boot:           ParseKVMBootSource(vm.Boot),
-		Dir:            runDir,
-		KVMExtraOpts:   append([]string{"-name", vm.Name}, vm.KVMExtraOpts...),
-		ISO:            vm.Cdrom,
-		Disks:          disks,
-		UefiVars:       vm.UefiVars,
-		SecureBoot:     vm.SecureBoot,
-		UseTPM:         vm.TPM,
-		TPMVersion:     vm.TPMVersion,
-		Gui:            vm.Gui,
+		Name:         vm.Name,
+		Cpus:         2,
+		Memory:       4096,
+		Boot:         ParseKVMBootSource(vm.Boot),
+		Dir:          runDir,
+		KVMExtraOpts: append([]string{"-name", vm.Name}, vm.KVMExtraOpts...),
+		ISO:          vm.Cdrom,
+		Disks:        disks,
+		UefiVars:     vm.UefiVars,
+		SecureBoot:   vm.SecureBoot,
+		UseTPM:       vm.TPM,
+		TPMVersion:   vm.TPMVersion,
+		Gui:          vm.Gui,
 	}
 
 	if opts.ISO != "" {
@@ -370,11 +369,11 @@ func newVM(endCh chan struct{}, doneCh chan struct{}, vm VMDef, runDir string) (
 	}
 
 	return VM{
-		Name:               vm.Name,
-		endCh:              endCh,
-		doneCh:             doneCh,
-		opts:               opts,
-		State:              VMInit,
+		Name:   vm.Name,
+		endCh:  endCh,
+		doneCh: doneCh,
+		opts:   opts,
+		State:  VMInit,
 	}, nil
 }
 
@@ -431,6 +430,14 @@ func (v *VM) Start() error {
 		if err := d.Create(); err != nil {
 			return err
 		}
+	}
+
+	for _, nic := range v.opts.NICs {
+		err = nic.Setup()
+		if err != nil {
+			return errors.Wrapf(err, "Failed setting up nic %s for vm %s", nic.NetType, v.Name)
+		}
+		log.Debugf("VM:%s setup Nic:%s macaddr:%s ", v.Name, nic.ID, nic.HWAddr)
 	}
 
 	args, err := getKvmCommand(v.opts)
@@ -518,6 +525,10 @@ func (v *VM) Stop() error {
 
 	if v.opts.SwTPM != nil {
 		v.opts.SwTPM.Stop()
+	}
+
+	for _, nic := range v.opts.NICs {
+		nic.Cleanup()
 	}
 
 	sLink := path.Join(v.opts.Dir, "sockets")
@@ -847,7 +858,7 @@ func getKvmCommand(opts KVMRunOpts) ([]string, error) {
 		args = append(args, "-vga", "qxl", "-spice", portStr)
 		cluster := filepath.Base(filepath.Dir(opts.Dir))
 		portPath := filepath.Join(dataDir, "machine", cluster,
-			 fmt.Sprintf("%s.rundir", opts.Name), "gui.port")
+			fmt.Sprintf("%s.rundir", opts.Name), "gui.port")
 		err = os.WriteFile(portPath, []byte(fmt.Sprintf("%d", spicePort)), 0600)
 		if err != nil {
 			return []string{}, err
@@ -912,7 +923,15 @@ func getKvmCommand(opts KVMRunOpts) ([]string, error) {
 		args = append(args, strings.Split(o, " ")...)
 	}
 
-	//args = append(args, "-net", "none")
+	// disable default e1000 nic unless nics are defined
+	if len(opts.NICs) == 0 {
+		args = append(args, "-net", "none")
+	} else {
+		for _, nic := range opts.NICs {
+			txt := nic.Args()
+			args = append(args, txt...)
+		}
+	}
 
 	switch opts.Boot {
 	case BootNet:
