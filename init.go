@@ -16,16 +16,16 @@ import (
 )
 
 var initCmd = cli.Command{
-	Name: "init",
-	Usage: "initialize a new machine from yaml",
+	Name:   "init",
+	Usage:  "initialize a new machine from yaml",
 	Action: doInit,
 	Flags: []cli.Flag{
 		cli.StringFlag{
-			Name: "file",
+			Name:  "file",
 			Usage: "yaml file to import.  If unspecified, use stdin",
 		},
 		cli.BoolFlag{
-			Name: "edit",
+			Name:  "edit",
 			Usage: "edit the yaml file inline",
 		},
 	},
@@ -39,7 +39,7 @@ func doInit(ctx *cli.Context) error {
 	cluster := ctx.Args()[0]
 	cPath := ConfPath(cluster)
 	if PathExists(cPath) {
-		return errors.Errorf("%s already defined", cluster)
+		return errors.Errorf("%s already defined: %s exists", cluster, cPath)
 	}
 
 	var vmbytes []byte

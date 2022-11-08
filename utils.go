@@ -857,7 +857,11 @@ func DataDir(cluster string) string {
 }
 
 func RunDir(cluster, vm string) string {
-	return filepath.Join(DataDir(cluster),  fmt.Sprintf("%s.rundir", vm))
+	return filepath.Join(DataDir(cluster), fmt.Sprintf("%s.rundir", vm))
+}
+
+func ApiSockPath(cluster string) string {
+	return DataDir(cluster) + "/api.sock"
 }
 
 func ConfPath(cluster string) string {

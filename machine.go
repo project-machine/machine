@@ -24,6 +24,7 @@ func main() {
 		initCmd,
 		listCmd,
 		runCmd,
+		deleteCmd,
 	}
 
 	var err error
@@ -58,4 +59,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

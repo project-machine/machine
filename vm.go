@@ -941,3 +941,13 @@ func getKvmCommand(opts KVMRunOpts) ([]string, error) {
 	log.Debugf("KVM Args: %s", args)
 	return args, nil
 }
+
+func StopVMs(vms []*VM) {
+	log.Infof("StopVMs: Stopping (%d) VMs", len(vms))
+	for _, vm := range vms {
+		err := vm.Stop()
+		if err != nil {
+			log.Warnf("Error stopping vm %s", vm.Name)
+		}
+	}
+}
