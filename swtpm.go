@@ -246,4 +246,3 @@ func (s *SwTPM) Stop() error {
 	}
 	return nil
 }
-

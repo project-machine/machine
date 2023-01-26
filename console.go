@@ -12,8 +12,8 @@ import (
 )
 
 var consoleCmd = cli.Command{
-	Name: "console",
-	Usage: "open serial console to a VM",
+	Name:   "console",
+	Usage:  "open serial console to a VM",
 	Action: doConsole,
 }
 
@@ -33,8 +33,8 @@ func doConsole(ctx *cli.Context) error {
 }
 
 var guiCmd = cli.Command{
-	Name: "gui",
-	Usage: "open graphical connection to a VM",
+	Name:   "gui",
+	Usage:  "open graphical connection to a VM",
 	Action: doGui,
 }
 

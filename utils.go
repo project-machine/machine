@@ -187,9 +187,9 @@ func EnsureDir(dir string) error {
 
 // CopyFileBits - copy file content from a to b
 // differs from CopyFile in:
-//  - does not do permissions - new files created with 0644
-//  - if src is a symlink, copies content, not link.
-//  - does not invoke sh.
+//   - does not do permissions - new files created with 0644
+//   - if src is a symlink, copies content, not link.
+//   - does not invoke sh.
 func CopyFileBits(src, dest string) error {
 	in, err := os.Open(src)
 	if err != nil {

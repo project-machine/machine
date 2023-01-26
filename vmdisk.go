@@ -225,4 +225,3 @@ func (q *QemuDisk) args(attachIndex int, bootIndex int) []string {
 		"-device", strings.Join(devopts, ","),
 	}
 }
-

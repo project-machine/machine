@@ -14,8 +14,8 @@ import (
 )
 
 var editCmd = cli.Command{
-	Name: "edit",
-	Usage: "edit a machine definition",
+	Name:   "edit",
+	Usage:  "edit a machine definition",
 	Action: doEdit,
 }
 

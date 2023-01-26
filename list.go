@@ -10,8 +10,8 @@ import (
 )
 
 var listCmd = cli.Command{
-	Name: "list",
-	Usage: "list defined machines",
+	Name:   "list",
+	Usage:  "list defined machines",
 	Action: doList,
 }
 

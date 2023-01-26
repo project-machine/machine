@@ -648,7 +648,6 @@ var QemuTypeIndex map[string]int
 // -object iothread,id=iothread2
 // -drive id=drv1
 // -device scsi-hd,drive=drv1,iothread=iothread2
-//
 func getNextQemuIndex(qtype string) int {
 	currentIndex := 0
 	ok := false

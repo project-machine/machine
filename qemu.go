@@ -6,7 +6,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-
 )
 
 type QemuKvmContext struct {
@@ -121,4 +120,3 @@ func hugetlbfsFreePages() (int, error) {
 	}
 	return 0, fmt.Errorf("Did not find HugePages_Free entry in /proc/meminfo")
 }
-
