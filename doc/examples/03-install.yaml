@@ -1,0 +1,20 @@
+name: vm3
+type: kvm
+ephemeral: false
+description: install machine-os to system
+config:
+  name: vm3
+  boot: cdrom
+  uefi: true
+  tpm: true
+  tpm-version: 2.0
+  secure-boot: true
+  uefi-vars: import/ovmf_vars-snakeoil.fd
+  cdrom: import/machineos-lvm.iso
+  disks:
+      - file: root-disk.qcow
+        type: ssd
+        size: 100GiB
+      - file: extra-disk.qcow
+        type: hdd
+        size: 650GiB

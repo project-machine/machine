@@ -1,0 +1,9 @@
+name: c1
+type: kvm
+ephemeral: false
+description: the minimal amount of config to define a machine
+name: vm1-minimal
+config:
+  disks:
+      - file: home/vm1-disk.qcow2
+        type: ssd

@@ -1,0 +1,17 @@
+name: vm2
+type: kvm
+ephemeral: false
+description: provision disk/tpm from heimdall
+config:
+  name: vm2
+  boot: cdrom
+  uefi: true
+  tpm: true
+  tpm-version: 2.0
+  secure-boot: true
+  uefi-vars: import/ovmf_vars-snakeoil.fd
+  cdrom: import/heimdall-0.0.12-snakeoil.iso
+  disks:
+      - file: root-disk.qcow
+        type: ssd
+        size: 100GiB

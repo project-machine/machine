@@ -1,0 +1,33 @@
+type: kvm
+description: Test machine for qcli VM config
+ephemeral: false
+name: test-qcli
+config:
+    cpus: 16
+    memory: 16384
+    uefi: true
+    secureboot: false
+    tpm: true
+    tpm-version: 2.0
+    disks:
+        - file: import/barehost-lvm-uefi.qcow2
+          format: qcow2
+          type: ssd
+          attach: virtio
+          bootindex: 0
+        - file: vm1-data.raw
+          size: 100G
+          format: raw
+          attach: virtio
+          type: ssd
+    nics:
+      - device: e1000
+        addr: 3
+        mac: "aa:bb:cc:dd:ee:ff"
+        id: mgmt0
+        network: user
+      - device: virtio-net
+        addr: 4
+        mac: "ff:ee:dd:cc:bb:aa"
+        id: fabric0
+        network: user
