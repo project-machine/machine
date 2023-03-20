@@ -1,19 +1,34 @@
-package main
+/*
+
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package api
 
 import (
 	"bytes"
 	"fmt"
+	"html/template"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
-	"text/template"
 	"time"
 
-	"github.com/apex/log"
-	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 type SwTPM struct {
@@ -22,7 +37,6 @@ type SwTPM struct {
 	Version  string
 	cmd      *exec.Cmd
 	finished chan error
-	diedCh   chan struct{}
 }
 
 // ${StateDir}/swtpm-localca.conf
@@ -40,7 +54,7 @@ const swTPMLocalCaOptionsTpl = `
 --tpm-manufacturer IBM
 --tpm-model swtpm-libtpms
 --tpm-version {{.Version}}
---platform-manufacturer Atomix
+--platform-manufacturer MachineOS
 --platform-version 2.1
 --platform-model QEMU
 `
@@ -63,25 +77,25 @@ func renderSwTPMTemplate(templateSource, filename string, data interface{}) erro
 	log.Debugf("SwTPM: rendering template for %s", filename)
 	tmpl, err := template.New(filename).Parse(templateSource)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to read template for %s", filename)
+		return fmt.Errorf("Failed to read template for %s: %s", filename, err)
 	}
 
 	var tmplBuffer bytes.Buffer
 	err = tmpl.Execute(&tmplBuffer, data)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to render template for %s", filename)
+		return fmt.Errorf("Failed to render template for %s: %s", filename, err)
 	}
 
-	err = os.WriteFile(filename, tmplBuffer.Bytes(), 0644)
+	err = ioutil.WriteFile(filename, tmplBuffer.Bytes(), 0644)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to write template to file: %s", filename)
+		return fmt.Errorf("Failed to write template to file: %s: %s", filename, err)
 	}
 	return nil
 }
 
 func (s *SwTPM) Setup() error {
 	if err := os.MkdirAll(s.StateDir, 0755); err != nil {
-		return errors.Wrapf(err, "SwTPM Setup failed to create statedir: %s", s.StateDir)
+		return fmt.Errorf("SwTPM Setup failed to create statedir: %s: %s", s.StateDir, err)
 	}
 
 	// check if we've already setup a tpm before
@@ -107,7 +121,7 @@ func (s *SwTPM) Setup() error {
 	var major, minor, micro int
 	numParsed, err := fmt.Sscanf(swtpmVersion, "%d.%d.%d", &major, &minor, &micro)
 	if err != nil || numParsed != 3 {
-		return errors.Wrapf(err, "Failed to parse swtpm_setup version string: %s", swtpmVersion)
+		return fmt.Errorf("Failed to parse swtpm_setup version string '%s': %s", swtpmVersion, err)
 	}
 	log.Infof("Found swtpm_setup version string:%s major:%d minor:%d micro:%d", swtpmVersion, major, minor, micro)
 
@@ -173,7 +187,7 @@ func (s *SwTPM) Start() error {
 	if err != nil {
 		// swtpm_setup is mandatory for 1.2 tpms to function, 2.0 can proceed
 		if strings.HasPrefix(s.Version, "1") {
-			return errors.Wrapf(err, "Cannot start SwTPM, required setup for TPM 1.x failed")
+			return fmt.Errorf("Cannot start SwTPM, required setup for TPM 1.x failed")
 		}
 		log.Warnf("SwTPM Setup() failed. Some TPM features may not function. Please update swtpm to 0.7.1 or newer")
 	}
@@ -203,17 +217,16 @@ func (s *SwTPM) Start() error {
 		return err
 	}
 
+	// wait up to 10 seconds for the SwTPM socket to appear
+	if !WaitForPath(s.Socket, 10, 1) {
+		return fmt.Errorf("SwTPM start failed, socket %s does not exist after 10 seconds", s.Socket)
+	}
+
 	log.Infof("swtpm TPM Version %s started with pid %d", s.Version, cmd.Process.Pid)
 	s.cmd = cmd
 
 	go func() {
-		log.Infof("XXX waiting")
-		waitState := s.cmd.Wait() // send termination state to s.Stop()
-		log.Infof("XXX got termination state")
-		s.diedCh <- struct{}{} // inform parent vm that we died
-		log.Infof("XXX sent diedCh")
-		s.finished <- waitState
-		log.Infof("XXX sent termination state")
+		s.finished <- s.cmd.Wait()
 	}()
 
 	return nil

@@ -1,0 +1,17 @@
+name: 01-secure-boot-server
+type: kvm
+ephemeral: false
+description: A fresh VM booting Ubuntu Server LiveCD in SecureBoot mode with TPM
+config:
+  name: 01-secure-boot-server
+  boot: cdrom
+  uefi: true
+  tpm: true
+  tpm-version: 2.0
+  secure-boot: true
+  # cdrom: import/ubuntu-22.04.2-desktop-amd64.iso
+  cdrom: import/jammy-live-server-amd64.iso
+  disks:
+      - file: root-disk.qcow
+        type: ssd
+        size: 50GiB
