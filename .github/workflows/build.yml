@@ -19,6 +19,12 @@ jobs:
       - name: Make machine binaries
         run: |
           make
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: bin/
+          if-no-files-found: error
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
