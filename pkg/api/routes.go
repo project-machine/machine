@@ -53,6 +53,8 @@ func (rh *RouteHandler) GetMachine(ctx *gin.Context) {
 	machine, err := rh.c.MachineController.GetMachine(machineName)
 	if err != nil {
 		log.Errorf("Failed to get machine '%s': %s\n", machineName, err)
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
 	}
 	ctx.IndentedJSON(http.StatusOK, machine)
 }

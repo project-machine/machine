@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	table "github.com/rodaine/table"
@@ -28,21 +29,32 @@ var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "info about the specified machine",
 	Long:  `info about the specified machine`,
-	Run:   doInfo,
+	RunE:  doInfo,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		cmd.SilenceUsage = true
+	},
 }
 
-func doInfo(cmd *cobra.Command, args []string) {
+func doInfo(cmd *cobra.Command, args []string) error {
 	machineName := args[0]
-	machine, err := getMachine(machineName)
+	machine, status, err := getMachine(machineName)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("Error getting machine '%s': %s", machineName, err)
 	}
-
-	machineBytes, err := yaml.Marshal(machine)
-	if err != nil {
-		panic(err)
+	if status != http.StatusOK {
+		if status == http.StatusNotFound {
+			// fmt.Printf("No such machine '%s'\n", machineName)
+			return fmt.Errorf("No such machine '%s'", machineName)
+		}
+		return fmt.Errorf("Error: %d %v\n", status, err)
+	} else {
+		machineBytes, err := yaml.Marshal(machine)
+		if err != nil {
+			return fmt.Errorf("Failed to marshal response: %v", err)
+		}
+		fmt.Printf("%s", machineBytes)
 	}
-	fmt.Printf("%s", machineBytes)
+	return nil
 }
 
 func init() {
