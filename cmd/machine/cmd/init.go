@@ -64,9 +64,6 @@ config:
 
 func doInit(cmd *cobra.Command, args []string) {
 	fileName := cmd.Flag("file").Value.String()
-	if fileName == "" {
-		fileName = "-"
-	}
 	// Hi cobra, this is awkward...  why isn't there .Value.Bool()?
 	editFile, _ := cmd.Flags().GetBool("edit")
 	var machineName string
@@ -79,6 +76,14 @@ func doInit(cmd *cobra.Command, args []string) {
 	if err := DoCreateMachine(machineName, fileName, editFile); err != nil {
 		panic(fmt.Sprintf("Failed to create a machine: %s", err))
 	}
+}
+
+func dataOnStdin() bool {
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		return true
+	}
+	return false
 }
 
 func DoCreateMachine(machineName, fileName string, editFile bool) error {
@@ -112,7 +117,7 @@ func DoCreateMachine(machineName, fileName string, editFile bool) error {
 		return fmt.Errorf("Aborting edit since stdin is not a terminal")
 	}
 
-	if fileName == "-" {
+	if fileName == "-" || dataOnStdin() {
 		machineBytes, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Error reading machine definition from stdin: %s", err)
@@ -129,7 +134,6 @@ func DoCreateMachine(machineName, fileName string, editFile bool) error {
 			if err != nil {
 				return fmt.Errorf("Failed reading empty machine config: %s", err)
 			}
-			editFile = true
 		}
 	}
 
