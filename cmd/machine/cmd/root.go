@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"machine/pkg/api"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -130,18 +130,18 @@ func getMachines() ([]api.Machine, error) {
 	return machines, nil
 }
 
-func getMachine(machineName string) (api.Machine, error) {
+func getMachine(machineName string) (api.Machine, int, error) {
 	machine := api.Machine{}
 	getURL := api.GetAPIURL(filepath.Join("machines", machineName))
 	if len(getURL) == 0 {
-		return machine, fmt.Errorf("Failed to get API URL for 'machines/%s' endpoint", machineName)
+		return machine, http.StatusBadRequest, fmt.Errorf("Failed to get API URL for 'machines/%s' endpoint", machineName)
 	}
 	resp, _ := rootclient.R().EnableTrace().Get(getURL)
 	err := json.Unmarshal(resp.Body(), &machine)
 	if err != nil {
-		return machine, fmt.Errorf("Failed to unmarshal GET on /machines/%s", machineName)
+		return machine, resp.StatusCode(), fmt.Errorf("%d: Failed to unmarshal GET on /machines/%s", resp.StatusCode(), machineName)
 	}
-	return machine, nil
+	return machine, resp.StatusCode(), nil
 }
 
 func postMachine(newMachine api.Machine) error {
