@@ -62,9 +62,22 @@ func (c *MachineDaemonConfig) GetConfigContext() context.Context {
 	return ctx
 }
 
-// FIXME: read from ENV variables before using fallback values
+// XDG_RUNTIME_DIR
+func UserRuntimeDir() (string, error) {
+	env := "XDG_RUNTIME_DIR"
+	if v := os.Getenv(env); v != "" {
+		return v, nil
+	}
+	uid := os.Getuid()
+	return fmt.Sprintf("/run/user/%d", uid), nil
+}
+
 //  XDG_DATA_HOME
 func UserDataDir() (string, error) {
+	env := "XDG_DATA_HOME"
+	if v := os.Getenv(env); v != "" {
+		return v, nil
+	}
 	p, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -72,9 +85,12 @@ func UserDataDir() (string, error) {
 	return filepath.Join(p, ".local", "share"), nil
 }
 
-// FIXME: read from ENV variables before using fallback values
 //  XDG_CONFIG_HOME
 func UserConfigDir() (string, error) {
+	env := "XDG_CONFIG_HOME"
+	if v := os.Getenv(env); v != "" {
+		return v, nil
+	}
 	p, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -82,9 +98,12 @@ func UserConfigDir() (string, error) {
 	return filepath.Join(p, ".config"), nil
 }
 
-// FIXME: read from ENV variables before using fallback values
 //  XDG_STATE_HOME
 func UserStateDir() (string, error) {
+	env := "XDG_STATE_HOME"
+	if v := os.Getenv(env); v != "" {
+		return v, nil
+	}
 	p, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

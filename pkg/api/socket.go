@@ -18,10 +18,10 @@ import (
 	"path/filepath"
 )
 
-const MachineUnixSocketName = "machine.socket"
+const MachineUnixSocketName = "machined.socket"
 
 func APISocketPath() string {
-	udd, err := UserDataDir()
+	udd, err := UserRuntimeDir()
 	if err != nil {
 		return ""
 	}
