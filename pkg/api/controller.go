@@ -30,6 +30,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/coreos/go-systemd/activation"
 	"github.com/gin-gonic/gin"
 	"github.com/msoap/byline"
 	log "github.com/sirupsen/logrus"
@@ -85,6 +86,7 @@ func (c *Controller) Run(ctx context.Context) error {
 	if len(unixSocket) == 0 {
 		panic("Failed to get an API Socket path")
 	}
+	log.Infof("Using machined API socket: %s", unixSocket)
 
 	// mkdir -p on dirname(unixSocet)
 	err := os.MkdirAll(filepath.Dir(unixSocket), 0755)
@@ -92,18 +94,34 @@ func (c *Controller) Run(ctx context.Context) error {
 		panic(fmt.Sprintf("Failed to create directory path to: %s", unixSocket))
 	}
 
+	// handle systemd socket activation
+	listeners, err := activation.Listeners()
+	if err != nil {
+		panic(err)
+	}
+
+	// configure engine, router, and server
+	engine := gin.Default()
+	c.Router = engine
+	_ = NewRouteHandler(c)
+	c.Server = &http.Server{Handler: c.Router.Handler()}
+
+	// either systemd socket unit isn't started or we're not using systemd
+	if len(listeners) > 0 {
+		for _, listener := range listeners {
+			if listener != nil {
+				log.Infof("machined service starting service via socket activation")
+				return c.Server.Serve(listeners[0])
+			}
+		}
+	}
+	log.Infof("No systemd socket activation, falling back on direct listen")
+
 	// FIXME to check if another machined is running/pidfile?, flock?
 	if PathExists(unixSocket) {
 		os.Remove(unixSocket)
 	}
 	defer os.Remove(unixSocket)
-
-	log.Infof("machined service running on: %s\n", unixSocket)
-	engine := gin.Default()
-	c.Router = engine
-
-	//  configure routes
-	_ = NewRouteHandler(c)
 
 	// re-implement gin.Engine.RunUnix() so we can set the context ourselves
 	listener, err := net.Listen("unix", unixSocket)
@@ -111,8 +129,6 @@ func (c *Controller) Run(ctx context.Context) error {
 		panic("Failed to create a unix socket listener")
 	}
 	defer listener.Close()
-
-	c.Server = &http.Server{Handler: c.Router.Handler()}
 
 	return c.Server.Serve(listener)
 }

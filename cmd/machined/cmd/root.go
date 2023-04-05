@@ -1,28 +1,17 @@
-/*
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
 package cmd
 
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"machine/pkg/api"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"text/template"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -39,6 +28,97 @@ var rootCmd = &cobra.Command{
 	Long: `The daemon runs a RESTful service to interact with and manage
 machine machines.`,
 	Run: doServerRun,
+}
+
+// common bits for install/remove commands
+const (
+	HostSystemdUnitPath = "/etc/systemd/system"
+	MachinedServiceUnit = "machined.service"
+	MachinedSocketUnit  = "machined.socket"
+)
+
+const MachinedServiceTemplate = `[Unit]
+Description=Machined Service
+Requires=machined.socket
+After=machined.socket
+StartLimitIntervalSec=0
+
+[Service]
+Delegate=true
+Type=exec
+KillMode=process
+ExecStart={{.MachinedBinaryPath}}
+
+[Install]
+WantedBy=default.target
+`
+
+const MachinedSocketTemplate = `
+[Unit]
+Description=Machined Socket
+
+[Socket]
+ListenStream=%t/machined/machined.socket
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target
+`
+
+func getSystemdUnitPath(hostMode bool) (string, error) {
+	if hostMode {
+		return HostSystemdUnitPath, nil
+	}
+	ucd, err := api.UserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("Failed to get UserConfigDir via API: %s", err)
+	}
+	return filepath.Join(ucd, "systemd/user"), nil
+}
+
+// GetTemplate returns a template string, either from a specified file or default template
+func getTemplate(cliTemplateFile, defaultTemplate string) string {
+	if cliTemplateFile != "" {
+		content, err := ioutil.ReadFile(cliTemplateFile)
+		if err == nil {
+			return string(content)
+		}
+	}
+	return defaultTemplate
+}
+
+func getMachinedBinaryPath() (string, error) {
+	path, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("Failed to determine machined full path: %s", err)
+	}
+	return path, nil
+}
+
+func installTemplate(templateSource, target string) error {
+	machinedPath, err := getMachinedBinaryPath()
+	if err != nil {
+		return fmt.Errorf("Failed to get path to machined binary: %s", err)
+	}
+
+	binpath := struct {
+		MachinedBinaryPath string
+	}{
+		MachinedBinaryPath: machinedPath,
+	}
+
+	tpl := template.New("systemd-unit")
+	tpl, err = tpl.Parse(templateSource)
+	if err != nil {
+		return fmt.Errorf("Failed to parse provided template for target %q", target)
+	}
+
+	fh, err := os.Create(target)
+	if err != nil {
+		return fmt.Errorf("Failed to create target file %q: %s", target, err)
+	}
+	log.Infof("Installing %s", target)
+	return tpl.Execute(fh, binpath)
 }
 
 func doServerRun(cmd *cobra.Command, args []string) {
@@ -70,59 +150,6 @@ func doServerRun(cmd *cobra.Command, args []string) {
 	ctrl.Shutdown(ctx)
 	log.Infof("machined exiting")
 }
-
-// func doServerRun(cmd *cobra.Command, args []string) {
-// 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-// 	defer stop()
-//
-// 	unixSocket := api.APISocketPath()
-// 	if len(unixSocket) == 0 {
-// 		panic("Failed to get an API Socket path")
-// 	}
-// 	// mkdir -p on dirname(unixSocet)
-// 	err := os.MkdirAll(filepath.Dir(unixSocket), 0755)
-// 	if err != nil {
-// 		panic(fmt.Sprintf("Failed to create directory path to: %s", unixSocket))
-// 	}
-// 	// FIXME to check if another machined is running/pidfile?, flock?
-// 	if PathExists(unixSocket) {
-// 		os.Remove(unixSocket)
-// 	}
-//
-// 	fmt.Println("machined service running on: %s", unixSocket)
-// 	router := gin.Default()
-// 	router.GET("/machines", api.GetMachines)
-// 	router.POST("/machines", api.PostMachines)
-//
-// 	// re-implement gin.Engine.RunUnix() so we can set the context ourselves
-// 	listener, err := net.Listen("unix", unixSocket)
-// 	if err != nil {
-// 		panic("Failed to create a unix socket listener")
-// 	}
-// 	defer listener.Close()
-// 	defer os.Remove(unixSocket)
-//
-// 	srv := &http.Server{Handler: router.Handler()}
-// 	go func() {
-// 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
-// 			panic(fmt.Sprintf("Failed to Serve: %s", err))
-// 		}
-// 	}()
-//
-// 	<-ctx.Done()
-// 	// restore default behavior on the interrupt signal and nitify user of
-// 	// shutdown
-// 	fmt.Println("machined shutting down gracefully, press Ctrl+C again to force")
-// 	fmt.Println("machined notifying all machines to shutdown... (FIXME)")
-// 	fmt.Printf("machined waiting up to %s seconds\n", MachineShutdownTimeoutSeconds)
-//
-// 	ctx, cancel := context.WithTimeout(context.Background(), MachineShutdownTimeoutSeconds)
-// 	defer cancel()
-// 	if err := srv.Shutdown(ctx); err != nil {
-// 		panic(fmt.Sprintf("machined forced to shutdown: %s", err))
-// 	}
-// 	fmt.Println("machined exiting")
-// }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
