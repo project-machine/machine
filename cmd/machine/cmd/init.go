@@ -20,26 +20,19 @@ import (
 	"machine/pkg/api"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
-	"github.com/apex/log"
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
 )
 
-// initCmd represents the init command
-var initCmd = &cobra.Command{
-	Use:   "init <machine name>",
-	Short: "Initialize a new machine from yaml",
-	Long:  `Initilize a new machine by specifying a machine yaml configuring.`,
-	Run:   doInit,
-}
-
-const defaultMachine = `
+const machineTypeInsecureVerson1 = `
 type: kvm
 ephemeral: false
 config:
@@ -48,7 +41,8 @@ config:
   uefi: true
   tpm: true
   tpm-version: 2.0
-  secureboot: false
+  secure-boot: false
+  gui: true
   disks:
     - file: rootdisk.qcow2
       format: qcow2
@@ -62,20 +56,48 @@ config:
       network: user
 `
 
-func doInit(cmd *cobra.Command, args []string) {
-	fileName := cmd.Flag("file").Value.String()
-	// Hi cobra, this is awkward...  why isn't there .Value.Bool()?
-	editFile, _ := cmd.Flags().GetBool("edit")
-	var machineName string
-	if len(args) > 0 {
-		machineName = args[0]
-	} else {
-		machineName = petname.Generate(petNameWords, petNameSep)
-	}
+const machineTypeVersion1 = `
+type: kvm
+ephemeral: false
+config:
+  cpus: 2
+  memory: 2048
+  uefi: true
+  tpm: true
+  tpm-version: 2.0
+  secure-boot: true
+  gui: true
+  disks:
+    - file: rootdisk.qcow2
+      format: qcow2
+      type: ssd
+      attach: virtio
+      bootindex: 0
+      size: 50GiB
+`
 
-	if err := DoCreateMachine(machineName, fileName, editFile); err != nil {
-		panic(fmt.Sprintf("Failed to create a machine: %s", err))
+const defaultMachineType = "1.0"
+
+var machineTypes = map[string]string{
+	defaultMachineType: machineTypeVersion1,
+	"1.0-insecure":     machineTypeInsecureVerson1,
+}
+
+func getMachineTypes() []string {
+	var mTypes []string
+	for key, _ := range machineTypes {
+		mTypes = append(mTypes, key)
 	}
+	sort.Strings(mTypes)
+	return mTypes
+}
+
+func getMachineTypeYaml(mType string) (string, error) {
+	machine, ok := machineTypes[mType]
+	if !ok {
+		return "", fmt.Errorf("Unknown machine type '%s'", mType)
+	}
+	return machine, nil
 }
 
 func dataOnStdin() bool {
@@ -86,11 +108,15 @@ func dataOnStdin() bool {
 	return false
 }
 
-func DoCreateMachine(machineName, fileName string, editFile bool) error {
-	log.Infof("DoCreateMachine Name:%s File:%s Edit:%v", machineName, fileName, editFile)
+func DoCreateMachine(machineName, machineType, fileName string, editFile bool) error {
+	log.Debugf("DoCreateMachine Name:%s Type:%s File:%s Edit:%v", machineName, machineType, fileName, editFile)
 	var err error
 	onTerm := termios.IsTerminal(unix.Stdin)
-	machineBytes := []byte(defaultMachine)
+	machine, err := getMachineTypeYaml(machineType)
+	if err != nil {
+		return fmt.Errorf("Failed to machine type '%s' template: %s", machineType, err)
+	}
+	machineBytes := []byte(machine)
 	newMachine := api.Machine{}
 
 	err = yaml.Unmarshal(machineBytes, &newMachine)
@@ -99,11 +125,14 @@ func DoCreateMachine(machineName, fileName string, editFile bool) error {
 	}
 	newMachine.Name = machineName
 	newMachine.Config.Name = machineName
-	newMac, err := api.RandomQemuMAC()
-	if err != nil {
-		return fmt.Errorf("Failed to generate a random QEMU MAC address: %s", err)
+	for idx, nic := range newMachine.Config.Nics {
+		newMac, err := api.RandomQemuMAC()
+		if err != nil {
+			return fmt.Errorf("Failed to generate a random QEMU MAC address: %s", err)
+		}
+		nic.Mac = newMac
+		newMachine.Config.Nics[idx] = nic
 	}
-	newMachine.Config.Nics[0].Mac = newMac
 
 	log.Infof("Creating machine...")
 
@@ -118,18 +147,20 @@ func DoCreateMachine(machineName, fileName string, editFile bool) error {
 	}
 
 	if fileName == "-" || dataOnStdin() {
+		log.Info("Reading machine config from stdin...")
 		machineBytes, err = ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("Error reading machine definition from stdin: %s", err)
 		}
 	} else {
 		if len(fileName) > 0 {
+			log.Infof("Reading machine config from %q", fileName)
 			machineBytes, err = os.ReadFile(fileName)
 			if err != nil {
 				return fmt.Errorf("Error reading definition from %s: %s", fileName, err)
 			}
 		} else {
-			fmt.Println("No file specified, using defaults..\n")
+			log.Infof("No machine config specified. Using defaults from machine type '%s' ...\n", machineType)
 			machineBytes, err = yaml.Marshal(newMachine)
 			if err != nil {
 				return fmt.Errorf("Failed reading empty machine config: %s", err)
@@ -143,7 +174,7 @@ func DoCreateMachine(machineName, fileName string, editFile bool) error {
 			return fmt.Errorf("Error calling editor: %s", err)
 		}
 	}
-	fmt.Printf("Got config:\n%s", string(machineBytes))
+	log.Debug("Got config:\n%s", string(machineBytes))
 
 	for {
 		if err = yaml.Unmarshal(machineBytes, &newMachine); err == nil {
@@ -224,8 +255,47 @@ func checkMachineFilePaths(newMachine *api.Machine) error {
 	return nil
 }
 
+// initCmd represents the init command
+var initCmd = &cobra.Command{
+	Use:               "init <machine name>",
+	Short:             "Initialize a new machine from yaml",
+	Long:              `Initilize a new machine by specifying a machine yaml configuring.`,
+	RunE:              doInit,
+	PersistentPreRunE: doInitArgsValidate,
+}
+
+func doInit(cmd *cobra.Command, args []string) error {
+	fileName := cmd.Flag("file").Value.String()
+	// Hi cobra, this is awkward...  why isn't there .Value.Bool()?
+	editFile, _ := cmd.Flags().GetBool("edit")
+	var machineName string
+	if len(args) > 0 {
+		machineName = args[0]
+	} else {
+		machineName = petname.Generate(petNameWords, petNameSep)
+	}
+	machineType := cmd.Flag("machine-type").Value.String()
+
+	if err := DoCreateMachine(machineName, machineType, fileName, editFile); err != nil {
+		return fmt.Errorf("Failed to create machine with type '%s': %s", machineType, err)
+	}
+	return nil
+}
+
+func doInitArgsValidate(cmd *cobra.Command, args []string) error {
+	mType := cmd.Flag("machine-type").Value.String()
+	if _, ok := machineTypes[mType]; !ok {
+		mTypes := getMachineTypes()
+		cmd.SilenceUsage = true
+		return fmt.Errorf("Invalid machine-type '%s', must be one of: %s", mType, strings.Join(mTypes, ", "))
+	}
+	return nil
+}
+
 func init() {
+	mTypes := getMachineTypes()
 	rootCmd.AddCommand(initCmd)
 	initCmd.PersistentFlags().StringP("file", "f", "", "yaml file to import.  If unspecified, use stdin")
 	initCmd.PersistentFlags().BoolP("edit", "e", false, "edit the yaml file inline")
+	initCmd.PersistentFlags().StringP("machine-type", "m", defaultMachineType, fmt.Sprintf("specify the machine type, one of [%s]", strings.Join(mTypes, ", ")))
 }

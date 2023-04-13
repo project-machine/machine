@@ -37,7 +37,7 @@ func doRun(cmd *cobra.Command, args []string) {
 	editMachine := false
 
 	// FIXME: handle mismatch between name in arg and value in config file
-	if err := DoCreateMachine(machineName, machineConfig, editMachine); err != nil {
+	if err := DoCreateMachine(machineName, defaultMachineType, machineConfig, editMachine); err != nil {
 		panic(fmt.Sprintf("Failed to create machine '%s' from config '%s': %s", machineName, machineConfig, err))
 	}
 
