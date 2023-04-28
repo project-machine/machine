@@ -26,6 +26,7 @@ import (
 	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
+	homedir "github.com/mitchellh/go-homedir"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
@@ -209,32 +210,37 @@ func verifyPath(base, path string) (string, error) {
 	fullPath := path
 	if strings.HasPrefix(path, "/") {
 		fullPath = path
+	} else if strings.HasPrefix(fullPath, "~/") {
+		ePath, err := homedir.Expand(fullPath)
+		if err != nil {
+			return "", fmt.Errorf("Failed to expand '~/' in path string %q: %s", fullPath, err)
+		}
+		log.Infof("Expanded %s to %q", fullPath, ePath)
+		fullPath = ePath
 	} else {
 		fullPath = filepath.Join(base, path)
 	}
 
 	if !api.PathExists(fullPath) {
-		return "", fmt.Errorf("Failed to find specified file '%s' after prepending base '%s'. No such file: %s", path, base, fullPath)
+		return "", fmt.Errorf("Failed to find specified file '%s'", fullPath)
 	}
 
 	return fullPath, nil
 }
 
 func checkMachineFilePaths(newMachine *api.Machine) error {
-
 	log.Infof("Checking machine definition for local file paths...")
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("Failed to get current working dir: %s", err)
 	}
-
 	for idx := range newMachine.Config.Disks {
 		disk := newMachine.Config.Disks[idx]
 		// skip disks to be created (file does not exist but size > 0)
 		if disk.File != "" && disk.Size == 0 {
 			newPath, err := verifyPath(cwd, disk.File)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("Failed to verify path to disk %q", disk.File)
 			}
 			if newPath != disk.File {
 				log.Infof("Fully qualified disk path %s", newPath)
@@ -246,12 +252,19 @@ func checkMachineFilePaths(newMachine *api.Machine) error {
 	if newMachine.Config.Cdrom != "" {
 		newPath, err := verifyPath(cwd, newMachine.Config.Cdrom)
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("Failed to verify path to cdrom %q", newMachine.Config.Cdrom)
 		}
 		log.Infof("Fully qualified cdrom path %s", newPath)
 		newMachine.Config.Cdrom = newPath
 	}
-
+	if newMachine.Config.UEFIVars != "" {
+		newPath, err := verifyPath(cwd, newMachine.Config.UEFIVars)
+		if err != nil {
+			return fmt.Errorf("Failed to verify path to uefi-vars: %q: %s", newMachine.Config.UEFIVars, err)
+		}
+		log.Infof("Fully qualified uefi-vars path %s", newPath)
+		newMachine.Config.UEFIVars = newPath
+	}
 	return nil
 }
 
