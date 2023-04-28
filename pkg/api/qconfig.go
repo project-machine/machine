@@ -295,17 +295,14 @@ func ConfigureUEFIVars(c *qcli.Config, srcVars, runDir string, secureBoot bool) 
 	if err != nil {
 		return fmt.Errorf("failed to create a UEFI Firmware Device: %s", err)
 	}
-
 	src := uefiDev.Vars
-	if len(srcVars) > 0 && PathExists(srcVars) {
+	if len(srcVars) > 0 {
 		src = srcVars
 	}
-
 	dest := filepath.Join(runDir, qcli.UEFIVarsFileName)
-	if !PathExists(dest) {
-		if err := CopyFileBits(src, dest); err != nil {
-			return fmt.Errorf("Failed to copy UEFI Vars from '%s' to '%q': %s", src, dest, err)
-		}
+	log.Infof("Importing UEFI Vars from '%s' to '%q'", src, dest)
+	if err := CopyFileBits(src, dest); err != nil {
+		return fmt.Errorf("Failed to import UEFI Vars from '%s' to '%q': %s", src, dest, err)
 	}
 	uefiDev.Vars = dest
 	c.UEFIFirmwareDevices = []qcli.UEFIFirmwareDevice{*uefiDev}
