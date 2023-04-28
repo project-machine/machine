@@ -83,8 +83,13 @@ func doEdit(cmd *cobra.Command, args []string) {
 
 	newMachine := api.Machine{Name: machineName}
 	for {
-		if err = yaml.Unmarshal(machineBytes, &newMachine); err == nil {
-			break
+		err = yaml.Unmarshal(machineBytes, &newMachine)
+		if err == nil {
+			pErr := checkMachineFilePaths(&newMachine)
+			if pErr == nil {
+				break
+			}
+			fmt.Printf("Error checking paths in config: %s\n", pErr)
 		}
 		if !onTerm {
 			panic(fmt.Sprintf("Error parsing configuration: %s", err))
@@ -99,6 +104,7 @@ func doEdit(cmd *cobra.Command, args []string) {
 		if err != nil {
 			panic(fmt.Sprintf("Error calling editor: %s", err))
 		}
+
 	}
 	// persist config if not ephemeral
 
