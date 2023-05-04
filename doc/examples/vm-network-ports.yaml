@@ -1,0 +1,44 @@
+type: kvm
+description: example vm showing multiple host/guest port forward syntax
+ephemeral: false
+name: slick-seal
+config:
+  name: slick-seal
+  cpus: 2
+  memory: 2048
+  serial: "true"
+  nics:
+  - device: virtio-net
+    id: nic0
+    mac: 52:54:00:81:91:9a
+    network: user
+    ports:
+    - protocol: tcp
+      host:
+        address: ""
+        port: 22222
+      guest:
+        address: ""
+        port: 22
+    - protocol: tcp
+      host:
+        address: ""
+        port: 8080
+      guest:
+        address: ""
+        port: 80
+    bootindex: "1"
+  disks:
+  - file: root.img
+    format: raw
+    size: 0
+    attach: virtio
+    type: ssd
+    bootindex: "0"
+  boot: ""
+  cdrom: ""
+  uefi-vars: /tmp/uefi_nvram-efi-shell.fd
+  tpm: true
+  tpm-version: "2.0"
+  secure-boot: false
+  gui: true

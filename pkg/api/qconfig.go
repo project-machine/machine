@@ -260,6 +260,17 @@ func (nd NicDef) QNetDevice(qti *qcli.QemuTypeIndex) (qcli.NetDevice, error) {
 		},
 		Driver: qcli.DeviceDriver(nd.Device),
 	}
+	if len(nd.Ports) > 0 {
+		for _, portRule := range nd.Ports {
+			rule := qcli.PortRule{}
+			rule.Protocol = portRule.Protocol
+			rule.Host.Address = portRule.Host.Address
+			rule.Host.Port = portRule.Host.Port
+			rule.Guest.Address = portRule.Guest.Address
+			rule.Guest.Port = portRule.Guest.Port
+			ndev.User.HostForward = append(ndev.User.HostForward, rule)
+		}
+	}
 	if ndev.MACAddress == "" {
 		mac, err := RandomQemuMAC()
 		if err != nil {
