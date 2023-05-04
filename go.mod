@@ -11,7 +11,7 @@ require (
 	github.com/lxc/lxd v0.0.0-20221130220346-2c77027b7a5e
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/msoap/byline v1.1.1
-	github.com/raharper/qcli v0.0.6
+	github.com/raharper/qcli v0.0.8
 	github.com/rodaine/table v1.1.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1

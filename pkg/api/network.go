@@ -17,8 +17,6 @@ package api
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -57,9 +55,25 @@ type VMNic struct {
 // nics:
 //  - id: nic1
 //    ports:
-//      - "tcp:localhost:22222": "localhost:22"
-//      - 1234: 23
-//      - 8080: 80
+//    - protocol: tcp
+//		host:
+//        address: ""  // address must be an IP, not hostname
+//        port: 22222
+//		guest:
+//        address: ""
+//        port: 22
+//    - host:
+//        address: ""
+//        port: 1234
+//    - guest:
+//        address: ""
+//        port: 23
+//    - host:
+//        address: ""
+//        port: 8080
+//    - guest:
+//        address: ""
+//        port: 80
 
 // A PortRule is a single entry map where the key and value represent
 // the host and guest mapping respectively. The Host and Guest value
@@ -73,63 +87,6 @@ type PortRule struct {
 type Port struct {
 	Address string
 	Port    int
-}
-
-func (p *PortRule) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	DefaultPortProtocol := "tcp"
-	DefaultPortHostAddress := ""
-	DefaultPortGuestAddress := ""
-	var ruleVal map[string]string
-	var err error
-
-	if err = unmarshal(&ruleVal); err != nil {
-		return err
-	}
-
-	for hostVal, guestVal := range ruleVal {
-		hostToks := strings.Split(hostVal, ":")
-		if len(hostToks) == 3 {
-			p.Protocol = hostToks[0]
-			p.Host.Address = hostToks[1]
-			p.Host.Port, err = strconv.Atoi(hostToks[2])
-			if err != nil {
-				return err
-			}
-		} else if len(hostToks) == 2 {
-			p.Protocol = DefaultPortProtocol
-			p.Host.Address = hostToks[0]
-			p.Host.Port, err = strconv.Atoi(hostToks[1])
-			if err != nil {
-				return err
-			}
-		} else {
-			p.Protocol = DefaultPortProtocol
-			p.Host.Address = DefaultPortHostAddress
-			p.Host.Port, err = strconv.Atoi(hostToks[0])
-			if err != nil {
-				return err
-			}
-		}
-		guestToks := strings.Split(guestVal, ":")
-		if len(guestToks) == 2 {
-			p.Guest.Address = guestToks[0]
-			p.Guest.Port, err = strconv.Atoi(guestToks[1])
-			if err != nil {
-				return err
-			}
-		} else {
-			p.Guest.Address = DefaultPortGuestAddress
-			p.Guest.Port, err = strconv.Atoi(guestToks[0])
-			if err != nil {
-				return err
-			}
-		}
-		break
-	}
-	if p.Protocol != "tcp" && p.Protocol != "udp" {
-		return fmt.Errorf("Invalid PortRule.Protocol value: %s . Must be 'tcp' or 'udp'", p.Protocol)
-	}
-	return nil
 }
 
 func (p *PortRule) String() string {
