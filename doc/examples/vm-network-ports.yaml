@@ -12,6 +12,7 @@ config:
     id: nic0
     mac: 52:54:00:81:91:9a
     network: user
+    romfile: "/usr/share/qemu/pxe-virtio.rom"
     ports:
     - protocol: tcp
       host:
@@ -28,6 +29,11 @@ config:
         address: ""
         port: 80
     bootindex: "1"
+  - device: virtio-net
+    id: nic1
+    mac: 52:54:00:73:28:1a
+    network: user
+    romfile: "off"  # disable built-in rom per qcli.DisabledNetDeviceROMFile
   disks:
   - file: root.img
     format: raw
