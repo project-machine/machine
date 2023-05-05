@@ -193,7 +193,7 @@ func (qd *QemuDisk) QBlockDevice(qti *qcli.QemuTypeIndex) (qcli.BlockDevice, err
 	if blk.BlockSize == 0 {
 		blk.BlockSize = 512
 	}
-	if qd.BootIndex != "" {
+	if qd.BootIndex != "" && qd.BootIndex != "off" {
 		bootindex, err := strconv.Atoi(qd.BootIndex)
 		if err != nil {
 			return blk, fmt.Errorf("Failed parsing disk %s BootIndex '%s': %s", qd.File, qd.BootIndex, err)
@@ -279,7 +279,7 @@ func (nd NicDef) QNetDevice(qti *qcli.QemuTypeIndex) (qcli.NetDevice, error) {
 		}
 		ndev.MACAddress = mac
 	}
-	if nd.BootIndex != "" {
+	if nd.BootIndex != "" && nd.BootIndex != "off" {
 		bootindex, err := strconv.Atoi(nd.BootIndex)
 		if err != nil {
 			return qcli.NetDevice{}, fmt.Errorf("Failed parsing nic %s BootIndex '%s': %s", nd.Device, nd.BootIndex, err)
