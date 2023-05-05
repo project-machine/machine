@@ -36,6 +36,7 @@ type NicDef struct {
 	Network   string     `yaml:"network",omitempty`
 	Ports     []PortRule `yaml:"ports",omitempty`
 	BootIndex string     `yaml:"bootindex,omitempty`
+	ROMFile   string     `yaml:"romfile,omitempty`
 }
 
 type VMNic struct {

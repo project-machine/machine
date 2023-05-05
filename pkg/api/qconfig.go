@@ -255,6 +255,7 @@ func (nd NicDef) QNetDevice(qti *qcli.QemuTypeIndex) (qcli.NetDevice, error) {
 		ID:         fmt.Sprintf("net%d", qti.NextNetIndex()),
 		Addr:       nd.BusAddr,
 		MACAddress: nd.Mac,
+		ROMFile:    nd.ROMFile,
 		User: qcli.NetDeviceUser{
 			IPV4: true,
 		},
