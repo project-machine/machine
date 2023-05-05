@@ -12,7 +12,7 @@ config:
     id: nic0
     mac: 52:54:00:81:91:9a
     network: user
-    romfile: "/usr/share/qemu/pxe-virtio.rom"
+    romfile: "/usr/share/qemu/pxe-virtio.rom"  # optionally specify rom instead of built-in one
     ports:
     - protocol: tcp
       host:
@@ -28,19 +28,20 @@ config:
       guest:
         address: ""
         port: 80
-    bootindex: "1"
+    bootindex: "0"
   - device: virtio-net
     id: nic1
     mac: 52:54:00:73:28:1a
     network: user
-    romfile: "off"  # disable built-in rom per qcli.DisabledNetDeviceROMFile
+    romfile: "off"    # disable built-in rom per qcli.DisabledNetDeviceROMFile
+    bootindex: "off"  # prevents qemu from including this device in OVMF Boot list
   disks:
   - file: root.img
     format: raw
     size: 0
     attach: virtio
     type: ssd
-    bootindex: "0"
+    bootindex: "1"
   boot: ""
   cdrom: ""
   uefi-vars: /tmp/uefi_nvram-efi-shell.fd

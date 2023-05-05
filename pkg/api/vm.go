@@ -83,7 +83,7 @@ func (v *VMDef) adjustDiskBootIdx(qti *qcli.QemuTypeIndex) ([]string, error) {
 	// mark any configured
 	for n := range v.Disks {
 		disk := v.Disks[n]
-		if disk.BootIndex != "" {
+		if disk.BootIndex != "" && disk.BootIndex != "off" {
 			log.Infof("disk: setting configured index %s on %s", disk.BootIndex, disk.File)
 			bootindex, err := strconv.Atoi(disk.BootIndex)
 			if err != nil {
@@ -121,7 +121,7 @@ func (v *VMDef) adjustNetBootIdx(qti *qcli.QemuTypeIndex) ([]string, error) {
 	// mark any configured
 	for n := range v.Nics {
 		nic := v.Nics[n]
-		if nic.BootIndex != "" {
+		if nic.BootIndex != "" && nic.BootIndex != "off" {
 			log.Infof("nic: setting configured index %s on %s", nic.BootIndex, nic.ID)
 			bootindex, err := strconv.Atoi(nic.BootIndex)
 			if err != nil {
