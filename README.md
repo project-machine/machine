@@ -26,11 +26,11 @@ newgrp kvm  # or logout and login, run 'groups' command to confirm
 Find the latest release here: https://github.com/project-machine/machine/releases/latest
 And select the tar.gz link, for example:
 
-```
-LATEST="https://github.com/project-machine/machine/archive/refs/tags/v0.0.2.tar.gz"
+```shell
+LATEST="https://github.com/project-machine/machine/archive/refs/tags/v0.0.4.tar.gz"
 wget "$LATEST"
-tar xzf v0.0.2
-cd machine-0.0.2
+tar xzf v0.0.4
+cd machine-0.0.4
 make
 ```
 
@@ -40,7 +40,7 @@ make
 
 In a second shell/terminal
 
-```
+```shell
 newgrp kvm
 ./bin/machined
 ```
@@ -49,20 +49,24 @@ When done, control-c to stop daemon.
 
 ### For hosting/running
 
-In a second shell/terminal
+In a second shell/terminal, use `machined install` to setup systemd units to run
+machined via socket activation.
 
-```
+```shell
 groups | grep kvm || newgrp kvm
-systemd-run --user --unit=machined.service --no-block --working-directory=$PWD bin/machined
+./bin/machined install
 systemctl --user status machined.service
 journalctl --user --follow -u machined.service
 ```
 
+If you make changes to machined (most changes under pkg/api) then you can stop
+the service with `systemctl stop --user machined.service` and then any new
+invocation of `machine` will start up the service again with the newer binary
 
-When done, `systemctl stop --user machined.service` The service unit should
-be removed from the system.  Run the `systemd-run` command to start it up
-again.  If machined fails, you can clean up the unit with `systemctl --user reset-failed machined.service`
-then issue the stop command again to remove the unit.
+If you would like to remove the systemd units, do so with `machined remove`.
+If for any reason machined fails, you can clean up the unit with `systemctl --user reset-failed machined.service`.
+Then re-run the `machined remove` command to remove the units.
+
 
 Note: on some systems, systemd-run --user prevents access to /dev/kvm via groups
 The current workaround is to `sudo chmod 0666 /dev/kvm`
@@ -70,7 +74,7 @@ The current workaround is to `sudo chmod 0666 /dev/kvm`
 ## Run machine client
 
 ```
-/bin machine list
+./bin machine list
 ```
 
 ## Starting your first VM
