@@ -25,6 +25,11 @@ func doInstall(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get Systemd Unit Path: %s", err)
 	}
+	if !api.PathExists(unitPath) {
+		if err := api.EnsureDir(unitPath); err != nil {
+			return fmt.Errorf("Failed to create Systemd Unit path %q: %s", unitPath, err)
+		}
+	}
 	serviceUnit := filepath.Join(unitPath, MachinedServiceUnit)
 	socketUnit := filepath.Join(unitPath, MachinedSocketUnit)
 	customService := cmd.Flag("service-template").Value.String()
