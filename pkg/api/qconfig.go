@@ -2,22 +2,28 @@ package api
 
 import (
 	"fmt"
+	"github.com/project-machine/qcli"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-
-	"github.com/raharper/qcli"
 
 	log "github.com/sirupsen/logrus"
 )
 
 func GetKvmPath() (string, error) {
-	// perfer qemu-kvm, qemu-system-x86_64, kvm
-	emulators := []string{"qemu-kvm", "qemu-system-x86_64", "kvm"}
+	// prefer qemu-kvm, qemu-system-x86_64, kvm for x86 platform,
+	// qemu-system-aarch64 when on arm64 platform
+	var emulators []string
 	paths := []string{"/usr/libexec", "/usr/bin"}
-
+	switch runtime.GOARCH {
+	case "amd64", "x86_64":
+		emulators = []string{"qemu-kvm", "qemu-system-x86_64", "kvm"}
+	case "aarch64", "arm64":
+		emulators = []string{"qemu-system-aarch64"}
+	}
 	for _, emulator := range emulators {
 		for _, prefix := range paths {
 			kvmPath := path.Join(prefix, emulator)
@@ -29,7 +35,7 @@ func GetKvmPath() (string, error) {
 	return "", fmt.Errorf("Failed to find QEMU/KVM binary [%s] in paths [%s]\n", emulators, paths)
 }
 
-func NewDefaultConfig(name string, numCpus, numMemMB uint32, sockDir string) (*qcli.Config, error) {
+func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) (*qcli.Config, error) {
 	smp := qcli.SMP{CPUs: numCpus}
 	if numCpus < 1 {
 		smp.CPUs = 4
@@ -136,6 +142,73 @@ func NewDefaultConfig(name string, numCpus, numMemMB uint32, sockDir string) (*q
 		},
 	}
 
+	return c, nil
+}
+
+func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockDir string) (*qcli.Config, error) {
+	smp := qcli.SMP{CPUs: numCpus}
+	if numCpus < 1 {
+		smp.CPUs = 4
+	}
+
+	mem := qcli.Memory{
+		Size: fmt.Sprintf("%dm", numMemMB),
+	}
+	if numMemMB < 1 {
+		mem.Size = "1G"
+	}
+	path, err := GetKvmPath()
+	if err != nil {
+		return &qcli.Config{}, fmt.Errorf("Failed creating new default config: %s", err)
+	}
+	c := &qcli.Config{
+		Name: name,
+		Path: path,
+		Machine: qcli.Machine{
+			Type:         qcli.MachineTypeVirt,
+			Acceleration: qcli.MachineAccelerationKVM,
+		},
+		CPUModel: "host",
+		Memory:   mem,
+		CharDevices: []qcli.CharDevice{
+			qcli.CharDevice{
+				Driver:  qcli.PCISerialDevice,
+				Backend: qcli.Socket,
+				ID:      "serial0",
+				Path:    "/tmp/console.sock",
+			},
+			qcli.CharDevice{
+				Driver:  qcli.LegacySerial,
+				Backend: qcli.Socket,
+				ID:      "monitor0",
+				Path:    filepath.Join(sockDir, "monitor.sock"),
+			},
+		},
+		SerialDevices: []qcli.SerialDevice{
+			qcli.SerialDevice{
+				Driver:     qcli.PCISerialDevice,
+				ID:         "pciser0",
+				ChardevIDs: []string{"serial0"},
+				MaxPorts:   1,
+			},
+		},
+		MonitorDevices: []qcli.MonitorDevice{
+			qcli.MonitorDevice{
+				ChardevID: "monitor0",
+			},
+		},
+		QMPSockets: []qcli.QMPSocket{
+			qcli.QMPSocket{
+				Type:   "unix",
+				Server: true,
+				NoWait: true,
+				Name:   filepath.Join(sockDir, "qmp.sock"),
+			},
+		},
+		Knobs: qcli.Knobs{
+			NoGraphic: true,
+		},
+	}
 	return c, nil
 }
 
@@ -310,7 +383,15 @@ func ConfigureUEFIVars(c *qcli.Config, srcVars, runDir string, secureBoot bool) 
 }
 
 func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
-	c, err := NewDefaultConfig(v.Name, v.Cpus, v.Memory, sockDir)
+	var c *qcli.Config
+	var err error
+	switch runtime.GOARCH {
+	case "amd64", "x86_64":
+		c, err = NewDefaultX86Config(v.Name, v.Cpus, v.Memory, sockDir)
+	case "aarch64", "arm64":
+		c, err = NewDefaultAarch64Config(v.Name, v.Cpus, v.Memory, sockDir)
+	}
+
 	if err != nil {
 		return c, err
 	}
