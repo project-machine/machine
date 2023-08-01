@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/raharper/qcli"
+	"github.com/project-machine/qcli"
 
 	log "github.com/sirupsen/logrus"
 )
