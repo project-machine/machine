@@ -3,8 +3,8 @@ on:
   pull_request:
 name: build
 jobs:
-  build:
-    name: build
+  build-amd64:
+    name: build-amd64
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
@@ -19,6 +19,8 @@ jobs:
       - name: Make machine binaries
         run: |
           make
+          mv bin/machine bin/machine-linux-amd64
+          mv bin/machined bin/machined-linux-amd64
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
@@ -31,3 +33,28 @@ jobs:
         with:
           files: bin/machine*
 
+  build-arm64:
+    name: build-arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: aarch64
+          distro: ubuntu22.04
+
+          githubToken: ${{ github.token }}
+
+          install: |
+            apt-get -y update;
+            apt-get install -q -y git golang-go;
+            apt-get install -y golang make
+          run: |
+            make
+            mv bin/machine bin/machine-linux-arm64
+            mv bin/machined bin/machined-linux-arm64
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: bin/machine*
