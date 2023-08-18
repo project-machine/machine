@@ -172,10 +172,10 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 		Memory:   mem,
 		CharDevices: []qcli.CharDevice{
 			qcli.CharDevice{
-				Driver:  qcli.PCISerialDevice,
+				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "serial0",
-				Path:    "/tmp/console.sock",
+				Path:    filepath.Join(sockDir, "console.sock"),
 			},
 			qcli.CharDevice{
 				Driver:  qcli.LegacySerial,
@@ -184,12 +184,9 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 				Path:    filepath.Join(sockDir, "monitor.sock"),
 			},
 		},
-		SerialDevices: []qcli.SerialDevice{
-			qcli.SerialDevice{
-				Driver:     qcli.PCISerialDevice,
-				ID:         "pciser0",
-				ChardevIDs: []string{"serial0"},
-				MaxPorts:   1,
+		LegacySerialDevices: []qcli.LegacySerialDevice{
+			qcli.LegacySerialDevice{
+				ChardevID: "serial0",
 			},
 		},
 		MonitorDevices: []qcli.MonitorDevice{
@@ -419,6 +416,11 @@ func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
 			Attach:   "ide",
 			Type:     "cdrom",
 			ReadOnly: true,
+		}
+		rt := runtime.GOARCH
+		if (rt == "aarch64" || rt == "arm64") {
+			qd.Attach = "virtio"
+			log.Infof("WARK: arch %s overriding cdrom Attach to virtio", rt)
 		}
 		if v.Boot == "cdrom" {
 			qd.BootIndex = "0"
