@@ -420,7 +420,7 @@ func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
 		rt := runtime.GOARCH
 		if (rt == "aarch64" || rt == "arm64") {
 			qd.Attach = "virtio"
-			log.INfof("WARK: arch %s overriding cdrom Attach to virtio", rt)
+			log.Infof("WARK: arch %s overriding cdrom Attach to virtio", rt)
 		}
 		if v.Boot == "cdrom" {
 			qd.BootIndex = "0"
