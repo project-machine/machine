@@ -2,13 +2,14 @@ package api
 
 import (
 	"fmt"
-	"github.com/project-machine/qcli"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/project-machine/qcli"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -66,7 +67,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 		SMP:           smp,
 		Memory:        mem,
 		RngDevices: []qcli.RngDevice{
-			qcli.RngDevice{
+			{
 				Driver:    qcli.VirtioRng,
 				ID:        "rng0",
 				Bus:       "pcie.0",
@@ -75,13 +76,13 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		CharDevices: []qcli.CharDevice{
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "serial0",
 				Path:    filepath.Join(sockDir, "console.sock"),
 			},
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "monitor0",
@@ -89,17 +90,17 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		LegacySerialDevices: []qcli.LegacySerialDevice{
-			qcli.LegacySerialDevice{
+			{
 				ChardevID: "serial0",
 			},
 		},
 		MonitorDevices: []qcli.MonitorDevice{
-			qcli.MonitorDevice{
+			{
 				ChardevID: "monitor0",
 			},
 		},
 		QMPSockets: []qcli.QMPSocket{
-			qcli.QMPSocket{
+			{
 				Type:   "unix",
 				Server: true,
 				NoWait: true,
@@ -107,7 +108,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		PCIeRootPortDevices: []qcli.PCIeRootPortDevice{
-			qcli.PCIeRootPortDevice{
+			{
 				ID:            "root-port.0x4.0",
 				Bus:           "pcie.0",
 				Chassis:       "0x0",
@@ -116,7 +117,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 				Addr:          "0x5",
 				Multifunction: true,
 			},
-			qcli.PCIeRootPortDevice{
+			{
 				ID:            "root-port.0x4.1",
 				Bus:           "pcie.0",
 				Chassis:       "0x1",
@@ -171,13 +172,13 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 		CPUModel: "host",
 		Memory:   mem,
 		CharDevices: []qcli.CharDevice{
-			qcli.CharDevice{
+			{
 				Driver:  qcli.PCISerialDevice,
 				Backend: qcli.Socket,
 				ID:      "serial0",
 				Path:    "/tmp/console.sock",
 			},
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "monitor0",
@@ -185,7 +186,7 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 			},
 		},
 		SerialDevices: []qcli.SerialDevice{
-			qcli.SerialDevice{
+			{
 				Driver:     qcli.PCISerialDevice,
 				ID:         "pciser0",
 				ChardevIDs: []string{"serial0"},
@@ -193,12 +194,12 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 			},
 		},
 		MonitorDevices: []qcli.MonitorDevice{
-			qcli.MonitorDevice{
+			{
 				ChardevID: "monitor0",
 			},
 		},
 		QMPSockets: []qcli.QMPSocket{
-			qcli.QMPSocket{
+			{
 				Type:   "unix",
 				Server: true,
 				NoWait: true,
