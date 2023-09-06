@@ -174,7 +174,7 @@ func DoCreateMachine(machineName, machineType, fileName string, editFile bool) e
 			return fmt.Errorf("Error calling editor: %s", err)
 		}
 	}
-	log.Debug("Got config:\n%s", string(machineBytes))
+	log.Debugf("Got config:\n%s", string(machineBytes))
 
 	for {
 		if err = yaml.Unmarshal(machineBytes, &newMachine); err == nil {
@@ -195,7 +195,9 @@ func DoCreateMachine(machineName, machineType, fileName string, editFile bool) e
 		}
 	}
 
-	checkMachineFilePaths(&newMachine)
+	if err := checkMachineFilePaths(&newMachine); err != nil {
+		return fmt.Errorf("Error while checking machine fiel paths: %s", err)
+	}
 
 	// persist config if not ephemeral
 	err = postMachine(newMachine)
@@ -264,6 +266,14 @@ func checkMachineFilePaths(newMachine *api.Machine) error {
 		log.Infof("Fully qualified uefi-vars path %s", newPath)
 		newMachine.Config.UEFIVars = newPath
 	}
+	if newMachine.Config.UEFICode != "" {
+		newPath, err := verifyPath(cwd, newMachine.Config.UEFICode)
+		if err != nil {
+			return fmt.Errorf("Failed to verify path to uefi-code: %q: %s", newMachine.Config.UEFICode, err)
+		}
+		log.Infof("Fully qualified uefi-code path %s", newPath)
+		newMachine.Config.UEFICode = newPath
+	}
 	return nil
 }
 
@@ -301,6 +311,10 @@ func doInitArgsValidate(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		return fmt.Errorf("Invalid machine-type '%s', must be one of: %s", mType, strings.Join(mTypes, ", "))
 	}
+	debug, _ := cmd.Flags().GetBool("debug")
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	}
 	return nil
 }
 
@@ -309,5 +323,6 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.PersistentFlags().StringP("file", "f", "", "yaml file to import.  If unspecified, use stdin")
 	initCmd.PersistentFlags().BoolP("edit", "e", false, "edit the yaml file inline")
+	initCmd.PersistentFlags().BoolP("debug", "D", false, "enable debug logging")
 	initCmd.PersistentFlags().StringP("machine-type", "m", defaultMachineType, fmt.Sprintf("specify the machine type, one of [%s]", strings.Join(mTypes, ", ")))
 }

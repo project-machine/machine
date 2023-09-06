@@ -364,21 +364,41 @@ func (nd NicDef) QNetDevice(qti *qcli.QemuTypeIndex) (qcli.NetDevice, error) {
 	return ndev, nil
 }
 
-func ConfigureUEFIVars(c *qcli.Config, srcVars, runDir string, secureBoot bool) error {
+func ConfigureUEFIVars(c *qcli.Config, srcCode, srcVars, runDir string, secureBoot bool) error {
 	uefiDev, err := qcli.NewSystemUEFIFirmwareDevice(secureBoot)
 	if err != nil {
 		return fmt.Errorf("failed to create a UEFI Firmware Device: %s", err)
 	}
-	src := uefiDev.Vars
+	// Import  source UEFI Code (if provided)
+	src := uefiDev.Code
+	if len(srcCode) > 0 {
+		src = srcCode
+	}
+	// FIXME: create a qcli.UEFICodeFileName
+	dest := filepath.Join(runDir, "uefi-code.fd")
+	log.Infof("Importing UEFI Code from '%s' to '%q'", src, dest)
+	if err := CopyFileBits(src, dest); err != nil {
+		return fmt.Errorf("Failed to import UEFI Code from '%s' to '%q': %s", src, dest, err)
+	}
+	uefiDev.Code = dest
+
+	// Import  source UEFI Vxrs (if provided)
+	src = uefiDev.Vars
 	if len(srcVars) > 0 {
 		src = srcVars
 	}
-	dest := filepath.Join(runDir, qcli.UEFIVarsFileName)
+	dest = filepath.Join(runDir, qcli.UEFIVarsFileName)
 	log.Infof("Importing UEFI Vars from '%s' to '%q'", src, dest)
+	// FIXME: should we skip re-import of srcVars, the imported Vars may have
+	// had changes that a new import would clobber, warning for now
+	if PathExists(dest) {
+		log.Warnf("Already imported UEFI Vars file %q to %q, overwriting...", src, dest)
+	}
 	if err := CopyFileBits(src, dest); err != nil {
 		return fmt.Errorf("Failed to import UEFI Vars from '%s' to '%q': %s", src, dest, err)
 	}
 	uefiDev.Vars = dest
+
 	c.UEFIFirmwareDevices = []qcli.UEFIFirmwareDevice{*uefiDev}
 	return nil
 }
@@ -397,7 +417,7 @@ func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
 		return c, err
 	}
 
-	err = ConfigureUEFIVars(c, v.UEFIVars, runDir, v.SecureBoot)
+	err = ConfigureUEFIVars(c, v.UEFICode, v.UEFIVars, runDir, v.SecureBoot)
 	if err != nil {
 		return c, fmt.Errorf("Error configuring UEFI Vars: %s", err)
 	}

@@ -65,6 +65,7 @@ type VMDef struct {
 	Disks      []QemuDisk `yaml:"disks"`
 	Boot       string     `yaml:"boot"`
 	Cdrom      string     `yaml:"cdrom"`
+	UEFICode   string     `yaml:"uefi-code"`
 	UEFIVars   string     `yaml:"uefi-vars"`
 	TPM        bool       `yaml:"tpm"`
 	TPMVersion string     `yaml:"tpm-version"`
