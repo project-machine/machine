@@ -2,13 +2,14 @@ package api
 
 import (
 	"fmt"
-	"github.com/project-machine/qcli"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/project-machine/qcli"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -66,7 +67,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 		SMP:           smp,
 		Memory:        mem,
 		RngDevices: []qcli.RngDevice{
-			qcli.RngDevice{
+			{
 				Driver:    qcli.VirtioRng,
 				ID:        "rng0",
 				Bus:       "pcie.0",
@@ -75,13 +76,13 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		CharDevices: []qcli.CharDevice{
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "serial0",
 				Path:    filepath.Join(sockDir, "console.sock"),
 			},
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "monitor0",
@@ -89,17 +90,17 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		LegacySerialDevices: []qcli.LegacySerialDevice{
-			qcli.LegacySerialDevice{
+			{
 				ChardevID: "serial0",
 			},
 		},
 		MonitorDevices: []qcli.MonitorDevice{
-			qcli.MonitorDevice{
+			{
 				ChardevID: "monitor0",
 			},
 		},
 		QMPSockets: []qcli.QMPSocket{
-			qcli.QMPSocket{
+			{
 				Type:   "unix",
 				Server: true,
 				NoWait: true,
@@ -107,7 +108,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 			},
 		},
 		PCIeRootPortDevices: []qcli.PCIeRootPortDevice{
-			qcli.PCIeRootPortDevice{
+			{
 				ID:            "root-port.0x4.0",
 				Bus:           "pcie.0",
 				Chassis:       "0x0",
@@ -116,7 +117,7 @@ func NewDefaultX86Config(name string, numCpus, numMemMB uint32, sockDir string) 
 				Addr:          "0x5",
 				Multifunction: true,
 			},
-			qcli.PCIeRootPortDevice{
+			{
 				ID:            "root-port.0x4.1",
 				Bus:           "pcie.0",
 				Chassis:       "0x1",
@@ -171,13 +172,13 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 		CPUModel: "host",
 		Memory:   mem,
 		CharDevices: []qcli.CharDevice{
-			qcli.CharDevice{
+			{
 				Driver:  qcli.PCISerialDevice,
 				Backend: qcli.Socket,
 				ID:      "serial0",
 				Path:    "/tmp/console.sock",
 			},
-			qcli.CharDevice{
+			{
 				Driver:  qcli.LegacySerial,
 				Backend: qcli.Socket,
 				ID:      "monitor0",
@@ -185,7 +186,7 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 			},
 		},
 		SerialDevices: []qcli.SerialDevice{
-			qcli.SerialDevice{
+			{
 				Driver:     qcli.PCISerialDevice,
 				ID:         "pciser0",
 				ChardevIDs: []string{"serial0"},
@@ -193,12 +194,12 @@ func NewDefaultAarch64Config(name string, numCpus uint32, numMemMB uint32, sockD
 			},
 		},
 		MonitorDevices: []qcli.MonitorDevice{
-			qcli.MonitorDevice{
+			{
 				ChardevID: "monitor0",
 			},
 		},
 		QMPSockets: []qcli.QMPSocket{
-			qcli.QMPSocket{
+			{
 				Type:   "unix",
 				Server: true,
 				NoWait: true,
@@ -363,21 +364,41 @@ func (nd NicDef) QNetDevice(qti *qcli.QemuTypeIndex) (qcli.NetDevice, error) {
 	return ndev, nil
 }
 
-func ConfigureUEFIVars(c *qcli.Config, srcVars, runDir string, secureBoot bool) error {
+func ConfigureUEFIVars(c *qcli.Config, srcCode, srcVars, runDir string, secureBoot bool) error {
 	uefiDev, err := qcli.NewSystemUEFIFirmwareDevice(secureBoot)
 	if err != nil {
 		return fmt.Errorf("failed to create a UEFI Firmware Device: %s", err)
 	}
-	src := uefiDev.Vars
+	// Import  source UEFI Code (if provided)
+	src := uefiDev.Code
+	if len(srcCode) > 0 {
+		src = srcCode
+	}
+	// FIXME: create a qcli.UEFICodeFileName
+	dest := filepath.Join(runDir, "uefi-code.fd")
+	log.Infof("Importing UEFI Code from '%s' to '%q'", src, dest)
+	if err := CopyFileBits(src, dest); err != nil {
+		return fmt.Errorf("Failed to import UEFI Code from '%s' to '%q': %s", src, dest, err)
+	}
+	uefiDev.Code = dest
+
+	// Import  source UEFI Vxrs (if provided)
+	src = uefiDev.Vars
 	if len(srcVars) > 0 {
 		src = srcVars
 	}
-	dest := filepath.Join(runDir, qcli.UEFIVarsFileName)
+	dest = filepath.Join(runDir, qcli.UEFIVarsFileName)
 	log.Infof("Importing UEFI Vars from '%s' to '%q'", src, dest)
+	// FIXME: should we skip re-import of srcVars, the imported Vars may have
+	// had changes that a new import would clobber, warning for now
+	if PathExists(dest) {
+		log.Warnf("Already imported UEFI Vars file %q to %q, overwriting...", src, dest)
+	}
 	if err := CopyFileBits(src, dest); err != nil {
 		return fmt.Errorf("Failed to import UEFI Vars from '%s' to '%q': %s", src, dest, err)
 	}
 	uefiDev.Vars = dest
+
 	c.UEFIFirmwareDevices = []qcli.UEFIFirmwareDevice{*uefiDev}
 	return nil
 }
@@ -396,7 +417,7 @@ func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
 		return c, err
 	}
 
-	err = ConfigureUEFIVars(c, v.UEFIVars, runDir, v.SecureBoot)
+	err = ConfigureUEFIVars(c, v.UEFICode, v.UEFIVars, runDir, v.SecureBoot)
 	if err != nil {
 		return c, fmt.Errorf("Error configuring UEFI Vars: %s", err)
 	}
