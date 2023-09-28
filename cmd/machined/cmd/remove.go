@@ -1,12 +1,12 @@
-package cmd
+package main
 
 import (
 	"fmt"
-	"machine/pkg/api"
 	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/project-machine/machine/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

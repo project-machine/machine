@@ -1,4 +1,4 @@
-module machine
+module github.com/project-machine/machine
 
 go 1.18
 

@@ -14,8 +14,6 @@ limitations under the License.
 */
 package main
 
-import "machine/cmd/machine/cmd"
-
 func main() {
-	cmd.Execute()
+	Execute()
 }

@@ -1,10 +1,9 @@
-package cmd
+package main
 
 import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"machine/pkg/api"
 	"math/rand"
 	"net/http"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/project-machine/machine/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
