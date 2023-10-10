@@ -11,12 +11,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package main
 
 import (
 	"fmt"
 	"io/ioutil"
-	"machine/pkg/api"
 	"os"
 	"path/filepath"
 	"sort"
@@ -26,6 +25,7 @@ import (
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
 	homedir "github.com/mitchellh/go-homedir"
+	"github.com/project-machine/machine/pkg/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"

@@ -12,13 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"machine/pkg/api"
 	"math/rand"
 	"net"
 	"net/http"
@@ -27,6 +26,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/project-machine/machine/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

@@ -6,8 +6,8 @@ all: $(BINS)
 clean:
 	rm -f -v $(BINS)
 
-bin/machine: cmd/machine/*.go cmd/machine/cmd/*.go pkg/*/*.go
-	go build -o $@ cmd/machine/*.go
+bin/machine: cmd/machine/cmd/*.go pkg/*/*.go
+	go build -o $@ cmd/machine/cmd/*.go
 
-bin/machined: cmd/machined/*.go cmd/machined/cmd/*.go pkg/*/*.go
-	go build -o $@ cmd/machined/*.go
+bin/machined: cmd/machined/cmd/*.go pkg/*/*.go
+	go build -o $@ cmd/machined/cmd/*.go

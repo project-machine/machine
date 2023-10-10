@@ -12,15 +12,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cmd
+package main
 
 import (
 	"fmt"
-	"machine/pkg/api"
 	"os"
 
 	"github.com/lxc/lxd/shared"
 	"github.com/lxc/lxd/shared/termios"
+	"github.com/project-machine/machine/pkg/api"
 	"github.com/spf13/cobra"
 	"golang.org/x/sys/unix"
 	"gopkg.in/yaml.v2"
