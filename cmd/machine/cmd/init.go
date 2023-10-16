@@ -196,7 +196,7 @@ func DoCreateMachine(machineName, machineType, fileName string, editFile bool) e
 	}
 
 	if err := checkMachineFilePaths(&newMachine); err != nil {
-		return fmt.Errorf("Error while checking machine fiel paths: %s", err)
+		return fmt.Errorf("Error while checking machine file paths: %s", err)
 	}
 
 	// persist config if not ephemeral
