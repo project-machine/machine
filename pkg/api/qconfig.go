@@ -389,13 +389,12 @@ func ConfigureUEFIVars(c *qcli.Config, srcCode, srcVars, runDir string, secureBo
 	}
 	dest = filepath.Join(runDir, qcli.UEFIVarsFileName)
 	log.Infof("Importing UEFI Vars from '%s' to '%q'", src, dest)
-	// FIXME: should we skip re-import of srcVars, the imported Vars may have
-	// had changes that a new import would clobber, warning for now
-	if PathExists(dest) {
-		log.Warnf("Already imported UEFI Vars file %q to %q, overwriting...", src, dest)
-	}
-	if err := CopyFileBits(src, dest); err != nil {
-		return fmt.Errorf("Failed to import UEFI Vars from '%s' to '%q': %s", src, dest, err)
+	if !PathExists(dest) {
+		if err := CopyFileBits(src, dest); err != nil {
+			return fmt.Errorf("Failed to import UEFI Vars from '%s' to '%q': %s", src, dest, err)
+		}
+	} else {
+		log.Infof("Already imported UEFI Vars file %q to %q.  Not overwriting.", src, dest)
 	}
 	uefiDev.Vars = dest
 
