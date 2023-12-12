@@ -241,7 +241,7 @@ func checkMachineFilePaths(newMachine *api.Machine) error {
 		if disk.File != "" && disk.Size == 0 {
 			newPath, err := verifyPath(cwd, disk.File)
 			if err != nil {
-				return fmt.Errorf("Failed to verify path to disk %q", disk.File)
+				return fmt.Errorf("Failed to verify path to disk %q: %w", disk.File, err)
 			}
 			if newPath != disk.File {
 				log.Infof("Fully qualified disk path %s", newPath)
@@ -253,7 +253,7 @@ func checkMachineFilePaths(newMachine *api.Machine) error {
 	if newMachine.Config.Cdrom != "" {
 		newPath, err := verifyPath(cwd, newMachine.Config.Cdrom)
 		if err != nil {
-			return fmt.Errorf("Failed to verify path to cdrom %q", newMachine.Config.Cdrom)
+			return fmt.Errorf("Failed to verify path to cdrom %q: %w", newMachine.Config.Cdrom, err)
 		}
 		log.Infof("Fully qualified cdrom path %s", newPath)
 		newMachine.Config.Cdrom = newPath
