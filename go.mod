@@ -8,15 +8,17 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-resty/resty/v2 v2.7.0
+	github.com/google/uuid v1.3.0
 	github.com/lxc/lxd v0.0.0-20221130220346-2c77027b7a5e
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/msoap/byline v1.1.1
-	github.com/project-machine/qcli v0.2.1
+	github.com/pkg/errors v0.9.1
+	github.com/project-machine/qcli v0.3.1
 	github.com/rodaine/table v1.1.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.14.0
-	golang.org/x/sys v0.2.0
+	golang.org/x/sys v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -28,7 +30,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect

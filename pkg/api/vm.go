@@ -57,20 +57,21 @@ func (v VMState) String() string {
 }
 
 type VMDef struct {
-	Name       string     `yaml:"name"`
-	Cpus       uint32     `yaml:"cpus" default:1`
-	Memory     uint32     `yaml:"memory"`
-	Serial     string     `yaml:"serial"`
-	Nics       []NicDef   `yaml:"nics"`
-	Disks      []QemuDisk `yaml:"disks"`
-	Boot       string     `yaml:"boot"`
-	Cdrom      string     `yaml:"cdrom"`
-	UEFICode   string     `yaml:"uefi-code"`
-	UEFIVars   string     `yaml:"uefi-vars"`
-	TPM        bool       `yaml:"tpm"`
-	TPMVersion string     `yaml:"tpm-version"`
-	SecureBoot bool       `yaml:"secure-boot"`
-	Gui        bool       `yaml:"gui"`
+	Name       string          `yaml:"name"`
+	Cpus       uint32          `yaml:"cpus" default:1`
+	Memory     uint32          `yaml:"memory"`
+	Serial     string          `yaml:"serial"`
+	Nics       []NicDef        `yaml:"nics"`
+	Disks      []QemuDisk      `yaml:"disks"`
+	Boot       string          `yaml:"boot"`
+	Cdrom      string          `yaml:"cdrom"`
+	UEFICode   string          `yaml:"uefi-code"`
+	UEFIVars   string          `yaml:"uefi-vars"`
+	TPM        bool            `yaml:"tpm"`
+	TPMVersion string          `yaml:"tpm-version"`
+	SecureBoot bool            `yaml:"secure-boot"`
+	Gui        bool            `yaml:"gui"`
+	CloudInit  CloudInitConfig `yaml:"cloud-init"`
 }
 
 func (v *VMDef) adjustDiskBootIdx(qti *qcli.QemuTypeIndex) ([]string, error) {
@@ -253,6 +254,55 @@ func newVM(ctx context.Context, clusterName string, vmConfig VMDef) (*VM, error)
 		return &VM{}, fmt.Errorf("Failed to generate qcli Config from VM definition: %s", err)
 	}
 
+	// generate cloud-init seed dir if config is present
+	if HasCloudConfig(vmConfig.CloudInit) {
+		log.Infof("newVM: vm has cloud-init config, generating ci data")
+		log.Infof("newVM:   network-config: %s", vmConfig.CloudInit.NetworkConfig)
+		log.Infof("newVM:   user-data: %s", vmConfig.CloudInit.UserData)
+		log.Infof("newVM:   meta-data: %s", vmConfig.CloudInit.MetaData)
+
+		// insert MetaData if needed
+		if vmConfig.CloudInit.MetaData == "" {
+			log.Infof("newVM: preparing metadata, none provided")
+			if err := PrepareMetadata(&vmConfig.CloudInit, vmConfig.Name); err != nil {
+				return &VM{}, fmt.Errorf("failed to prepare cloud-init metadata: %s", err)
+			}
+			log.Infof("newVM:updated CloudInit data after prepare")
+			log.Infof("newVM:   network-config: %s", vmConfig.CloudInit.NetworkConfig)
+			log.Infof("newVM:   user-data: %s", vmConfig.CloudInit.UserData)
+			log.Infof("newVM:   meta-data: %s", vmConfig.CloudInit.MetaData)
+		}
+
+		// render CloudConfig to VM state dir if needed
+		seedDir := filepath.Join(runDir, "seed")
+		if !PathExists(seedDir) {
+			if err := CreateLocalDataSource(vmConfig.CloudInit, seedDir); err != nil {
+				// FIXME: if this create fails we might want to keep the image around?
+				os.RemoveAll(seedDir)
+				return &VM{}, fmt.Errorf("failed to create cloud-init datasource: %s", err)
+			}
+		}
+
+		// create a vvfat block device (id, directory, fslabel)
+		seedBlkID := fmt.Sprintf("%s-cloudcfg", vmConfig.Name)
+		seedBlockDev, err := NewVVFATBlockDev(seedBlkID, seedDir, NoCloudFSLabel)
+		if err != nil {
+			return &VM{}, fmt.Errorf("failed to create a vvfat block device: %s", err)
+		}
+
+		// insert vvfat blkdev if not already present
+		found := false
+		for n := range qcfg.BlkDevices {
+			if qcfg.BlkDevices[n].ID == seedBlkID {
+				found = true
+			}
+		}
+
+		if !found {
+			qcfg.BlkDevices = append(qcfg.BlkDevices, seedBlockDev)
+		}
+	}
+
 	cmdParams, err := qcli.ConfigureParams(qcfg, nil)
 	if err != nil {
 		return &VM{}, fmt.Errorf("Failed to generate new VM command parameters: %s", err)
@@ -315,7 +365,7 @@ func (v *VM) runVM() error {
 		v.Cmd.Stderr = &stderr
 		err := v.Cmd.Start()
 		if err != nil {
-			errCh <- fmt.Errorf("VM:%s failed with: %s", stderr.String())
+			errCh <- fmt.Errorf("VM:%s failed with: %s", v.Name(), stderr.String())
 			return
 		}
 
@@ -472,7 +522,7 @@ func (v *VM) Start() error {
 	log.Infof("VM:%s starting...", v.Name())
 	err := v.BackgroundRun()
 	if err != nil {
-		log.Errorf("VM:%s failed to start VM:%s %s", v.Name(), err)
+		log.Errorf("VM:%s failed to start VM: %s", v.Name(), err)
 		v.Stop(true)
 		return err
 	}
@@ -520,7 +570,7 @@ func (v *VM) Stop(force bool) error {
 		case <-time.After(timeout):
 			log.Warnf("VM:%s timed out, killing via cancel context...", v.Name())
 			v.Cancel()
-			log.Warnf("VM:%s cancel() complete")
+			log.Warnf("VM:%s cancel() complete", v.Name())
 		}
 		v.wg.Wait()
 	} else {

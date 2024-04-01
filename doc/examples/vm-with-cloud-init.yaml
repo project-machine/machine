@@ -1,0 +1,25 @@
+name: f40-vm1
+type: kvm
+ephemeral: false
+description: Fedora 40 Beta with UKI
+config:
+  name: f40-vm1
+  uefi: true
+  tpm: true
+  gui: false
+  tpm-version: 2.0
+  secure-boot: false
+  uefi-code: /usr/share/OVMF/OVMF_CODE.fd
+  disks:
+      - file: import/Fedora-Cloud-Base-UEFI-UKI.x86_64-40-1.10.qcow2
+        type: ssd
+        format: qcow2
+  cloud-init:
+      user-data: |
+        #cloud-config
+        password: <secret here>
+        chpasswd: { expire: False }
+        ssh_pwauth: True
+        ssh-authorized-keys:
+        - |
+          ssh-ed25519 xxxxx
