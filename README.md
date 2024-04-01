@@ -132,3 +132,8 @@ $ bin/machine start vm1
 200 OK
 $ bin/machine gui vm1
 ```
+
+
+## Examples
+
+See [doc/examples](doc/examples/) for other example VM definitions.

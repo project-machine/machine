@@ -402,6 +402,20 @@ func ConfigureUEFIVars(c *qcli.Config, srcCode, srcVars, runDir string, secureBo
 	return nil
 }
 
+func NewVVFATBlockDev(id, directory, label string) (qcli.BlockDevice, error) {
+	blkdev := qcli.BlockDevice{
+		Driver: qcli.VVFAT,
+		ID:     id,
+		VVFATDev: qcli.VVFATDev{
+			Driver:    qcli.VirtioBlock,
+			Directory: directory,
+			Label:     label,
+			FATMode:   qcli.FATMode16,
+		},
+	}
+	return blkdev, nil
+}
+
 func GenerateQConfig(runDir, sockDir string, v VMDef) (*qcli.Config, error) {
 	var c *qcli.Config
 	var err error
